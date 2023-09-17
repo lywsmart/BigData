@@ -1,4 +1,4 @@
-# 第2章 搭建Hadoop集群
+![image](https://github.com/lywsmart/BigData/assets/24404084/370f659d-bb73-419b-b7a3-1ab0b71440b0)# 第2章 搭建Hadoop集群
 
 ## 2.1 FinalShell的使用
 
@@ -11,7 +11,8 @@
 
 
 **(2)创建虚拟机的连接，如下图所示**
-<img src="G:/城职学院/1_我的工作/1_大数据技术与应用专业群/1_大数据专业/课程资料/2_大数据应用/20级/第三周/D9682928-A2FB-4a6d-BDBD-8D4C0DD9926A.png" style="zoom:80%;" />
+![image](https://github.com/lywsmart/BigData/assets/24404084/3ab85d11-50b0-4c7a-b3d0-d156389011f4)
+
 
 
 
@@ -20,7 +21,8 @@
 **在finalshell当中上传安装包，通过直接从windwos系统中拖拽到finalshell指定的目录下。**
 **（指定的目录：/opt/software目录）如下图：**
 
-![](G:/城职学院/1_我的工作/1_大数据技术与应用专业群/1_大数据专业/课程资料/2_大数据应用/20级/第三周/18C1E836-25E6-44b5-91F6-57F11ACE873F.png)
+![image](https://github.com/lywsmart/BigData/assets/24404084/0e022033-5d02-4d0d-9836-c3f13a73e348)
+
 
 
 
@@ -33,7 +35,8 @@ linux命令上输入：
 hostnamectl
 ```
 
-<img src="C:\Users\samrt\AppData\Roaming\Typora\typora-user-images\image-20220909125300053.png" alt="image-20220909125300053" style="zoom:80%;" />
+![image](https://github.com/lywsmart/BigData/assets/24404084/501b4c79-f64c-4b49-a545-01b8e6692de6)
+
 
 
 
@@ -59,13 +62,15 @@ hostnamectl set-hostname slave2
 vi /etc/hosts
 ```
 
-<img src="C:\Users\samrt\AppData\Roaming\Typora\typora-user-images\image-20220921173422740.png" alt="image-20220921173422740" style="zoom:80%;" />
+![image](https://github.com/lywsmart/BigData/assets/24404084/58b7c790-0a6c-42e2-bfaa-0364005b1855)
+
 
 
 
 **在配置文件中添加IP与主机名的映射，如下图**
 
-<img src="C:\Users\samrt\AppData\Roaming\Typora\typora-user-images\image-20220921174005595.png" alt="image-20220921174005595" style="zoom:80%;" />
+![image](https://github.com/lywsmart/BigData/assets/24404084/f0047ae2-d647-4d0e-b4cf-cd7a2cf98f76)
+
 
 
 
@@ -78,19 +83,21 @@ scp /etc/hosts slave2:/etc/
 (注意：远程复制时会提示输入密码，如下图)
 ```
 
-<img src="C:\Users\samrt\AppData\Roaming\Typora\typora-user-images\image-20220921174718522.png" alt="image-20220921174718522" style="zoom:80%;" />
+![image](https://github.com/lywsmart/BigData/assets/24404084/50827e52-5b06-40e6-beb7-bb27688b327a)
+
 
 
 
 远程**复制成功**如下图所示：
-
-<img src="C:\Users\samrt\AppData\Roaming\Typora\typora-user-images\image-20220921174816687.png" alt="image-20220921174816687" style="zoom:80%;" />
+![image](https://github.com/lywsmart/BigData/assets/24404084/3d40ac05-c437-4a1d-9c47-713a9f8f540e)
 
 
 
 测试**各节点之间**是否能根据**主机名**相互**ping通**，如下图所示。
+![image](https://github.com/lywsmart/BigData/assets/24404084/d6e6215f-92a5-483f-a6b6-0e0258a98cc1)
 
-<img src="C:\Users\samrt\AppData\Roaming\Typora\typora-user-images\image-20220921175049952.png" alt="image-20220921175049952" style="zoom:80%;" />
+
+
 
 
 
@@ -113,13 +120,15 @@ ssh-keygen -t rsa
 
 输入命令后，会弹出咨询信息，如下图
 
-<img src="C:\Users\samrt\AppData\Roaming\Typora\typora-user-images\image-20220921175718457.png" alt="image-20220921175718457" style="zoom:80%;" />
+![image](https://github.com/lywsmart/BigData/assets/24404084/93decfa6-ccc3-4cb4-90cb-d7578656806d)
+
 
 
 
 **一直回车到结束，如下图所示：**
 
-<img src="C:\Users\samrt\AppData\Roaming\Typora\typora-user-images\image-20220909131440887.png" alt="image-20220909131440887" style="zoom:80%;" />
+![image](https://github.com/lywsmart/BigData/assets/24404084/b912a5e6-b20c-449e-b4a3-c024808553c6)
+
 
 
 
@@ -136,7 +145,8 @@ ssh-copy-id slave2
 
 **这里需要输入一次linux登录密码，之后就可以免密登录了。**
 
-<img src="C:\Users\samrt\AppData\Roaming\Typora\typora-user-images\image-20220909131757390.png" alt="image-20220909131757390" style="zoom:80%;" />
+![image](https://github.com/lywsmart/BigData/assets/24404084/ac14722c-2db4-4eeb-a9b5-2499032385fe)
+
 
 
 
@@ -149,7 +159,8 @@ ssh slave1
 
 如下图所示，系统并没有要求我们输入密码进行登录了，**这时免密设置成功**。
 
-<img src="C:\Users\samrt\AppData\Roaming\Typora\typora-user-images\image-20220921180233928.png" alt="image-20220921180233928" style="zoom:80%;" />
+![image](https://github.com/lywsmart/BigData/assets/24404084/85e29c03-0e28-4915-9cfc-d6c5d98e237e)
+
 
 
 
