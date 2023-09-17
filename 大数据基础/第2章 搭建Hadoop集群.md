@@ -1,4 +1,4 @@
-![image](https://github.com/lywsmart/BigData/assets/24404084/370f659d-bb73-419b-b7a3-1ab0b71440b0)# 第2章 搭建Hadoop集群
+# 第2章 搭建Hadoop集群
 
 ## 2.1 FinalShell的使用
 
