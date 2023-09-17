@@ -5,7 +5,8 @@
 ### 2.1.1 创建连接
 
 **(1)打开finalshell，如下图所示**
-<img src="G:/城职学院/1_我的工作/1_大数据技术与应用专业群/1_大数据专业/课程资料/2_大数据应用/20级/第三周/C71D4C2E-4E74-47b9-9366-7C0A78778D6C.png" style="zoom:80%;" />
+![image](https://github.com/lywsmart/BigData/assets/24404084/80bae1b0-cc8a-40f1-a6c7-ddf9a47c295e)
+
 
 
 
