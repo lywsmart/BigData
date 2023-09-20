@@ -226,7 +226,7 @@ export PATH=$PATH:$JAVA_HOME/bin
 
 ```shell
 修改完Linux系统的配置文件/etc/profile，需要执行命令是环境变量生效，在master节点命令行上输入指令：
-source /etc/proflie
+source /etc/profile
 ```
 
 
@@ -240,7 +240,29 @@ java -version
 
 ![](第2章 搭建Hadoop集群.assets/C67BAC53-D873-4b03-BED5-BE6222D7C82B.png)
 
+### 2.6.6 分发java目录
 
+将**master节点**上的java目录，复制到**slave1节点**、**slave2节点**的**/usr/local/src**目录下
+
+```shell
+#远程复制命令如下：
+scp -r /usr/local/src/java slave1:/usr/local/src/      #将java目录复制到slave1上面
+scp -r /usr/local/src/java slave2:/usr/local/src/      #将java目录复制到slave2上面
+```
+
+将**master节点**上的/etc/profile文件，复制到**slave1节点**、**slave2节点**的**/etc**目录下
+
+```shell
+#远程复制命令如下：
+scp  /etc/profile slave1:/etc      
+scp  /etc/profile slave2:/etc      
+```
+
+分别在slave1节点、slave2节点上使环境变量生效，输入以下命令
+
+```shell
+source /etc/profile
+```
 
 ## 2.7 安装Hadoop组件
 
