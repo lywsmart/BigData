@@ -161,6 +161,15 @@ ssh slave1
 
 ![image](https://github.com/lywsmart/BigData/assets/24404084/85e29c03-0e28-4915-9cfc-d6c5d98e237e)
 
+### 2.4.5 分发密钥到其他主机
+
+在master主机节点上输入以下指令
+
+```shell
+scp -r ~/.ssh slave1:~/
+scp -r ~/.ssh slave2:~/
+```
+
 
 
 
