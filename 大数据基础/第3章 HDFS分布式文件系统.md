@@ -743,3 +743,885 @@ hadoop-daemons.sh start datanode  # 启动所有节点上的namenode
 hdfs fsck /mytest/word.txt -files -blocks -locations
 ```
 
+
+
+
+
+
+
+## 3.6 Hadoop集群扩容
+
+现根据业务需要，需要在原有的3台完全分布式的节点增设一台新的服务器节点，本章节就介绍了在原有的完全分布hadoop中增设新节点的部署。
+
+### 3.6.1 前置工作
+
+准备工作：空闲服务器（虚拟机）一台，并将jkd8在该服务器安装完毕(环境变量的添加等工作)，并将该服务器的的ip映射配置完毕
+环境要求： hadoop2.7.3版本环境安装包 。
+
+
+
+### 3.6.2 修改主机名
+
+```
+[root@localhost ~]# hostnamectl set-hostname slave3
+```
+
+
+
+### 3.6.3 修改hosts文件及免密登录
+
+#### 1.将新加节点信息补充至多台服务器的/etc/hosts中（包含新增节点自己这台服务器）
+
+```
+[root@master ~]# vi /etc/hosts
+```
+
+![image-20231009100732099](./第3章 HDFS分布式文件系统.assets/image-20231009100732099.png)
+
+
+
+#### 2.对slave3进行免密登录
+
+```
+[root@master ~]# ssh-copy-id slave3
+```
+
+将新的ssh密钥发送给slave1，slave2，slave3
+
+```
+[root@master ~]# scp -r  ~/.ssh slave1:~/
+[root@master ~]# scp -r  ~/.ssh slave2:~/
+[root@master ~]# scp -r  ~/.ssh slave3:~/
+```
+
+
+
+
+
+### 3.6.4 同步文件到slave3
+
+发送java和hadoop到slave3
+
+```
+[root@master ~]# scp -r /usr/local/src/* slave3:/usr/local/src/
+```
+
+发送环境变量文件到slave3
+
+```
+[root@master ~]# scp /etc/profile slave3:/etc/
+```
+
+在slave3上让环境变量生效
+
+```
+[root@slave3 ~]# source /etc/profile
+[root@slave3 ~]# hadoop version
+```
+
+
+
+### 3.6.5 修改四台主机的slaves文件
+
+```
+vi $HADOOP_HOME/etc/hadoop/slaves
+```
+
+ <img src="./第3章 HDFS分布式文件系统.assets/image-20231009104416262.png" alt="image-20231009104416262" style="zoom:67%;" />
+
+
+
+### 3.6.6 热增加节点
+
+在多台服务器都在运行的环境中[热增加节点]()，可以不用关闭集群重新启动
+
+直接在slave3上启动datanode，nodemanager
+
+```
+[root@slave3 ~]# hadoop-daemon.sh start datanode
+```
+
+
+
+### 3.6.7 启动数据同步命令（重点）
+
+```
+[root@slave3 ~]# start-balancer.sh 
+```
+
+执行这行命令以后，如果其余三台服务器上都有大量的冗余数据，会导致同时回写新增节点hadoop132,这时有可能会造成资源竞争问题，导致新节点阻塞而不能正常提供服务。
+
+提示：可以通过设置回写带宽来调整回写速度，这样在既保证了提供服务的情况下，还可以一边回写数据。
+
+
+
+启动nodemanager
+
+```
+[root@slave3 ~]# yarn-daemon.sh start nodemanager
+```
+
+
+
+
+
+## 3.7 HDFS的Java Api操作
+
+
+
+### 3.7.1 开发环境搭建
+
+#### 1.安装maven3.6.0
+
+(1)将maven3.6.0程序包放在D盘maven目录下
+
+说明：路径自定义，本例放在D:\maven\apache-maven-3.6.0
+
+ ![image-20231009112755036](./第3章 HDFS分布式文件系统.assets/image-20231009112755036.png)
+
+(2)编辑D:\maven\apache-maven-3.6.0\conf\ settings.xml文件
+
+①配置本地仓库的路径（保存所有下载过的jar文件）
+
+[特别提示：该仓库可以放在移动磁盘，每次到学校机房都可以编辑该配置文件映射到移动磁盘，这样不用每次都重新在网上下载。]()
+
+```xml
+<localRepository>E:/maven/repository</localRepository>
+```
+
+说明：E:/maven/repository表示本地仓库的地址，这个目录可以根据本机电脑情况修改，配置图如下。
+
+![image-20231009112849446](./第3章 HDFS分布式文件系统.assets/image-20231009112849446.png)
+
+②配置代理
+
+提示：如果不配置代理，默认是从国外下载，这样速度很慢，可以改动从国内下载。
+
+在<mirrors> </mirrors>标签里面加入如下代码
+
+```xml
+<!--阿里云仓库-->
+<mirror>
+	<id>alimaven</id>
+	<name>aliyun maven</name>
+	<url>http://maven.aliyun.com/nexus/content/groups/public/</url>
+	<mirrorOf>central</mirrorOf>
+</mirror>
+
+ <!-- <mirror>
+	<id>nexus-aliyun</id>
+	<mirrorOf>central</mirrorOf>
+	<name>Nexus aliyun</name>
+	<url>https://maven.aliyun.com/repository/public</url>
+</mirror> -->
+
+<mirror>
+	<id>uk</id>
+	<mirrorOf>central</mirrorOf>
+	<name>Human Readable Name for this Mirror.</name>
+	<url>http://uk.maven.org/maven2/</url>
+</mirror>
+
+<mirror>
+	<id>CN</id>
+	<name>OSChina Central</name>
+	<url>http://maven.oschina.net/content/groups/public/</url>
+	<mirrorOf>central</mirrorOf>
+</mirror>
+
+<mirror>
+	<id>nexus</id>
+	<name>internal nexus repository</name>
+	<!-- <url>http://192.168.1.100:8081/nexus/content/groups/public/</url>-->
+	<url>http://repo.maven.apache.org/maven2</url>
+	<mirrorOf>central</mirrorOf>
+</mirror>
+```
+
+(3)在windows配置环境变量
+
+①选择电脑属性，然后在“高级”选项卡点击“环境变量”按钮
+
+ <img src="./第3章 HDFS分布式文件系统.assets/image-20231009112939256.png" alt="image-20231009112939256" style="zoom: 80%;" />
+
+②在系统变量添加MAVEN_HOME变量，指向maven的安装路径
+
+如下图
+
+![image-20231009112951016](./第3章 HDFS分布式文件系统.assets/image-20231009112951016.png)
+
+③在系统变量path中添加%MAVEN_HOME%\bin，使maven命令能在本机任意地方使用。
+
+如下图
+
+![image-20231009113000810](./第3章 HDFS分布式文件系统.assets/image-20231009113000810.png)
+
+③在系统变量path中添加%MAVEN_HOME%\bin，使maven命令能在本机任意地方使用。
+
+如下图
+
+![image-20231009113026773](./第3章 HDFS分布式文件系统.assets/image-20231009113026773.png)
+
+(4)检查maven是否配置成功
+
+在命令窗口中，输入下述命令，查看maven版本号
+
+```bash
+mvn –version
+```
+
+如果能够显示版本号，基本上配置成功
+
+![image-20231009113057402](./第3章 HDFS分布式文件系统.assets/image-20231009113057402.png)
+
+
+
+### 3.7.2 在Idea中配置本地maven
+
+(1)选择Configure->setting菜单
+
+![image-20231009113133991](./第3章 HDFS分布式文件系统.assets/image-20231009113133991.png)
+
+(2)在settings对话框中设置maven配置
+
+![image-20231009113147191](./第3章 HDFS分布式文件系统.assets/image-20231009113147191.png)
+
+
+
+### 3.7.3 本地hadoop运行环境准备
+
+在web项目和大数据项目中，我们写的程序都应该打成JAR包上传的服务器中，但是我们一开始学习想要看到效果，可以先选择本地运行hadoop程序。
+
+想要本地运行hadoop程序，需要把本地准备hadoop环境。
+
+（1）找到资料包路径下的Windows依赖文件夹，拷贝hadoop-2.7.1到非中文路径（比如d:\）。
+
+![image-20231009145830536](./第3章 HDFS分布式文件系统.assets/image-20231009145830536.png)
+
+（2）配置HADOOP_HOME环境变量
+
+**[注意：我们上课用的版本是hadoop-2.7.1，不要照着图片上的设置]()**
+
+<img src="./第3章 HDFS分布式文件系统.assets/image-20231009150105016.png" alt="image-20231009150105016" style="zoom:50%;" />
+
+（3）配置Path环境变量。
+
+![image-20231009150247925](./第3章 HDFS分布式文件系统.assets/image-20231009150247925.png)
+
+
+
+**注意：如果环境变量不起作用，可以重启电脑试试。**
+
+
+
+### 3.7.4 在Idea中创建HDFS操作的工程
+
+#### 1.在idea中创建maven工程
+
+**①选择New Project，然后在左侧菜单选择“maven”**
+
+ <img src="./第3章 HDFS分布式文件系统.assets/image-20231009150836486.png" alt="image-20231009150836486" style="zoom:67%;" />
+
+
+
+如果要创建web工程，则选择下面的“[maven archetype-webapp]()”
+
+ <img src="./第3章 HDFS分布式文件系统.assets/image-20231009150853122.png" alt="image-20231009150853122" style="zoom:67%;" />
+
+
+
+**②输入组织名称和项目名称**
+
+ <img src="./第3章 HDFS分布式文件系统.assets/image-20231009150928932.png" alt="image-20231009150928932" style="zoom:67%;" />
+
+说明：
+
+- GroupId：组织名，表示项目是哪个组织的，一般用com.***表示。
+- ArtifactId：项目名称。
+- Version：版本号，一般不改变
+
+
+
+③输入项目所在路径
+
+<img src="./第3章 HDFS分布式文件系统.assets/image-20231009151027607.png" alt="image-20231009151027607" style="zoom:67%;" />
+
+说明：一般修改Project location即可。
+
+Project location：项目在本地保存的路径，建议修改，放到自己常用的项目开发目录中，使用英文路径
+
+
+
+**④创建成功后，在右下角对话框中根据自己喜好选择导入配置**
+
+ ![image-20231009151140205](./第3章 HDFS分布式文件系统.assets/image-20231009151140205.png)
+
+说明：
+
+- Import Changes：手动导入包，以后每次配置变动都会再次出现该对话框。
+- Enable Auto-Import：自动导入，以后配置变动也不会再出现改对话框
+
+
+
+
+
+#### 2.在工程项目pom.xml中加入hadoop的maven地址
+
+ ![image-20231009151643637](./第3章 HDFS分布式文件系统.assets/image-20231009151643637.png)
+
+在pom文件中增加依赖
+
+代码如下：
+
+```xml
+<properties>
+<hadoop.version>2.7.1</hadoop.version>
+</properties>
+```
+
+```xml
+<dependencies>
+<dependency>
+    <groupId>org.apache.hadoop</groupId>
+    <artifactId>hadoop-client</artifactId>
+    <version>${hadoop.version}</version>
+</dependency>
+<dependency>
+    <groupId>org.apache.hadoop</groupId>
+    <artifactId>hadoop-common</artifactId>
+    <version>${hadoop.version}</version>
+</dependency>
+<dependency>
+    <groupId>org.apache.hadoop</groupId>
+    <artifactId>hadoop-hdfs</artifactId>
+    <version>${hadoop.version}</version>
+</dependency>
+<dependency>
+    <groupId>junit</groupId>
+    <artifactId>junit</artifactId>
+    <version>4.11</version>
+    <scope>test</scope>
+</dependency>
+
+</dependencies>
+```
+
+添加效果如下图：
+
+<img src="./第3章 HDFS分布式文件系统.assets/image-20231009151944228.png" alt="image-20231009151944228" style="zoom:67%;" />
+
+
+
+#### 3.测试能否运行hdfs命令
+
+**①在项目test->java的测试目录新建包: com.lcvc.hdfs_practice**
+
+ <img src="./第3章 HDFS分布式文件系统.assets/image-20231009152709952.png" alt="image-20231009152709952" style="zoom:67%;" />
+
+**②在com.lcvc.hdfs_pratice包下创建测试类**
+
+代码如下：
+
+```java
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.junit.Test;
+
+public class HdfsTest1 {
+
+    //在hdfs上创建空目录，测试是否连接成功
+    @Test
+    public void initTest() throws Exception {
+        //构造一个配置参数对象，设置一个参数：要访问的HDFS的URI
+        Configuration configuration = new Configuration();
+        //指定要访问的HDFS地址（本例指向伪分布模式的虚拟机）
+        configuration.set("fs.defaultFS","hdfs://master:9000");
+        //设置身份信息，用于访问linux。否则会默认以windows的管理员访问，导致没有权限操作
+        System.setProperty("HADOOP_USER_NAME","root");
+        //获取文件系统的客户端对象
+        FileSystem fileSystem = FileSystem.get(configuration);
+        //执行文件操作，在hafs上创建一个目录测试
+        fileSystem.mkdirs(new Path("/idea_test1"));
+        fileSystem.close();//关闭文件系统
+    }
+}
+```
+
+
+
+**④在initTest上点击鼠标右键，选择“Run ‘initTest’”执行**
+
+ <img src="./第3章 HDFS分布式文件系统.assets/image-20231009152928040.png" alt="image-20231009152928040" style="zoom: 50%;" />
+
+
+
+此时打开网站可以看到目录已经成功创建
+
+![image-20231009152949049](./第3章 HDFS分布式文件系统.assets/image-20231009152949049.png)
+
+
+
+#### 4.常见失败原因
+
+**①找不到对应的主机**
+
+说明：例如下图提示的，master2并不存在
+
+ ![image-20231009153031365](./第3章 HDFS分布式文件系统.assets/image-20231009153031365.png)
+
+
+
+解决办法：首先检查linux中有没有做该主机名的映射，并且关闭linux防火墙；其次，在windows的hosts文件中，有没有做IP地址和主机的映射，如下图
+
+ <img src="./第3章 HDFS分布式文件系统.assets/image-20231009153437381.png" alt="image-20231009153437381" style="zoom:67%;" />
+
+
+
+**②没有操作权限**
+
+说明：如下图所示，提示账户1（windows账户）没有操作权限。
+
+![image-20231009153520050](./第3章 HDFS分布式文件系统.assets/image-20231009153520050.png)
+
+
+
+解决办法：首先要在linux中设定一个拥有hdfs操作权限的账户，如root；其次，在java代码中要加上下述代码：
+
+```java
+System.setProperty("HADOOP_USER_NAME","root");
+```
+
+以有hdfs操作权限的账户（如root）去执行代码中的请求。
+
+
+
+### 3.7.5 HDFS的Java Api
+
+#### 1.FileSystem类常用Api
+
+**①public boolean mkdirs(Path f) throws IOException**
+
+​	一次性新建所有目录（包括父目录）， f是完整的目录路径。
+
+相当于[hadoop fs -mkdir]()
+
+
+
+**②public FSOutputStream create(Path f) throws IOException**
+
+​	创建指定path对象的一个文件，返回一个用于写入数据的输出流
+
+​	create()有多个重载版本，允许我们指定是否强制覆盖已有的文件、文件备份数量、写入文件缓冲区大小、文件块大小以及文件权限。
+
+
+
+
+
+**③public boolean copyFromLocal(Path src, Path dst) throws IOException**
+
+​	将本地文件拷贝到文件系统
+
+
+
+
+
+**④public boolean exists(Path f) throws IOException**
+
+​	检查文件或目录是否存在
+
+
+
+
+
+**⑤public boolean delete(Path f, Boolean recursive)**
+
+​	永久性删除指定的文件或目录，如果f是一个空目录或者文件，那么recursive的值就会被忽略。只有recursive＝true时，一个非空目录及其内容才会被删除。
+
+​	注意：public boolean delete(Path f)函数可以直接删除非空目录，但是该函数已经被官方文档建议取消，建议不用该方法。
+
+相当于[hadoop fs -rm]()
+
+
+
+
+
+**⑥public boolean rename(Path src1, Path src2) throws IOException**
+
+​	将文件src1移动到src2，或者重命名文件
+
+相当于[hadoop fs -mv]()
+
+
+
+#### 2.案例一：判断hdfs上的文件是否存在
+
+```java
+//在hdfs上创建空目录，测试是否连接成功。
+@Test
+public void testExists() throws Exception {
+    //构造一个配置参数对象，设置一个参数：要访问的HDFS的URI
+    Configuration configuration = new Configuration();
+    //指定要访问的HDFS地址（本例指向伪分布模式的虚拟机）
+    configuration.set("fs.defaultFS","hdfs://master:9000");
+    //设置身份信息，用于访问linux。否则ew会默认以windows的管理员访问，导致没有权限操作
+    System.setProperty("HADOOP_USER_NAME","root");
+    //获取文件系统的客户端对象
+    FileSystem fileSystem = FileSystem.get(configuration);
+    //判断hdfs上的目录是否存在
+    boolean result=fileSystem.exists(new Path("/mytest"));
+    System.out.println(result);
+    fileSystem.close();//关闭文件系统
+}
+```
+
+
+
+
+
+#### 3.案例二：在hdfs上创建目录
+
+```java
+//在hdfs上创建空目录，相当于hadoop fs -mkdir指令
+@Test
+public void testMkdirs() throws Exception {
+    //构造一个配置参数对象，设置一个参数：要访问的HDFS的URI
+    Configuration configuration = new Configuration();
+    //指定要访问的HDFS地址（本例指向伪分布模式的虚拟机）
+    configuration.set("fs.defaultFS","hdfs://master:9000");
+    //设置身份信息，用于访问linux。否则ew会默认以windows的管理员访问，导致没有权限操作
+    System.setProperty("HADOOP_USER_NAME","root");
+    //获取文件系统的客户端对象
+    FileSystem fileSystem = FileSystem.get(configuration);
+    //判断hdfs上的目录是否存在
+    boolean result=fileSystem.mkdirs(new Path("/mytest"));
+    System.out.println(result);
+    fileSystem.close();//关闭文件系统
+}
+```
+
+
+
+
+
+#### 4.案例三：删除hdfs上的文件
+
+```java
+//删除文件，相当于hadoop fs -rm指令
+@Test
+public void testDelete() throws Exception {
+    //构造一个配置参数对象，设置一个参数：要访问的HDFS的URI
+    Configuration configuration = new Configuration();
+    //指定要访问的HDFS地址（本例指向伪分布模式的虚拟机）
+    configuration.set("fs.defaultFS","hdfs://master:9000");
+    //设置身份信息，用于访问linux。否则会默认以windows的管理员访问，导致没有权限操作
+    System.setProperty("HADOOP_USER_NAME","root");
+    //获取文件系统的客户端对象
+    FileSystem fileSystem = FileSystem.get(configuration);
+    System.out.println(fileSystem.delete(new Path("/windows"),true));//true表示如果是非空目录也删除；如果是false则不删除
+}
+```
+
+
+
+
+
+#### 5.案例四：剪切或重命名hdfs上的文件
+
+```java
+//重命名或剪切文件，相当于hdfs fs -mv指令
+@Test
+public void testRename() throws Exception {
+    //构造一个配置参数对象，设置一个参数：要访问的HDFS的URI
+    Configuration configuration = new Configuration();
+    //指定要访问的HDFS地址（本例指向伪分布模式的虚拟机）
+    configuration.set("fs.defaultFS","hdfs://master:9000");
+    //设置身份信息，用于访问linux。否则会默认以windows的管理员访问，导致没有权限操作
+    System.setProperty("HADOOP_USER_NAME","root");
+    //获取文件系统的客户端对象
+    FileSystem fileSystem = FileSystem.get(configuration);
+    //true表示如果重命名成功，false表示重命名失败
+    System.out.println(fileSystem.rename(new Path("/mytest1"),new Path("/mytest2")));
+    //将mytest文件夹剪切粘贴到windows文件夹下。要求windows目录必须存在,并且剪切后mytest下的所有文件也将跟着移动过去，类似windows的文件夹千切。
+    System.out.println(fileSystem.rename(new Path("/mytest"),new Path("/windows/")));
+    //将mytest2文件夹剪切粘贴到windows文件夹下并重命名为mytest1。要求windows目录必须存在
+    System.out.println(fileSystem.rename(new Path("/mytest2"),new Path("/windows/mytest1")));
+}
+```
+
+
+
+
+
+#### 6.案例五：查看hdfs上的文件内容（一般指文本）
+
+```java
+//查看文件内容，，相当于hadoop fs -cat指令
+@Test
+public void testView() throws Exception{
+    //构造一个配置参数对象，设置一个参数：要访问的HDFS的URI
+    Configuration configuration = new Configuration();
+    //指定要访问的HDFS地址（本例指向伪分布模式的虚拟机）
+    configuration.set("fs.defaultFS","hdfs://master:9000");
+    //获取文件系统的客户端对象
+    FileSystem fileSystem = FileSystem.get(configuration);
+    //设置身份信息，用于访问linux。否则会默认以windows的管理员访问，导致没有权限操作
+    System.setProperty("HADOOP_USER_NAME","root");
+    Path path = new Path("/mytest/hello1.txt");//获取文件路径
+    FSDataInputStream fsDataInputStream = fileSystem.open(path);
+    int c;
+    while((c = fsDataInputStream.read()) != -1){//如果文件流没有到末尾
+        System.out.print((char)c);
+    }
+    fsDataInputStream.close();
+}
+```
+
+
+
+
+
+#### 7.案例六：上传本地文件到hdfs上
+
+```java
+//上传本地文件到hdfs上，相当于hadoop fs -put指令
+@Test
+public void testPut() throws Exception {
+    //构造一个配置参数对象，设置一个参数：要访问的HDFS的URI
+    Configuration configuration = new Configuration();
+    //指定要访问的HDFS地址（本例指向伪分布模式的虚拟机）
+    configuration.set("fs.defaultFS","hdfs://master:9000");
+    //设置身份信息，用于访问linux。否则会默认以windows的管理员访问，导致没有权限操作
+    System.setProperty("HADOOP_USER_NAME","root");
+    //获取文件系统的客户端对象
+    FileSystem fileSystem = FileSystem.get(configuration);
+    fileSystem.mkdirs(new Path("/mytest"));//创建/mytest目录
+    //执行文件操作:将本地文件d:/hello_windows.txt上传到hdfs的/mytest目录里
+    fileSystem.copyFromLocalFile(new Path("d:/hello_windows.txt"),new Path("/mytest"));
+    //执行文件操作:将本地文件d:/hello_windows.txt上传到hdfs的/mytest目录里,并重命名为hello1.txt
+    fileSystem.copyFromLocalFile(new Path("d:/hello_windows.txt"),new Path("/mytest/hello1.txt"));
+    //关闭文件系统
+    fileSystem.close();
+}
+```
+
+
+
+
+
+#### 8.案例七：从hdfs上下载文件到本地
+
+```java
+//下载文件到本地，相当于hadoop fs -get指令，两种方法
+@Test
+public void testDownload() throws Exception{
+    //构造一个配置参数对象，设置一个参数：要访问的HDFS的URI
+    Configuration configuration = new Configuration();
+    //指定要访问的HDFS地址（本例指向伪分布模式的虚拟机）
+    configuration.set("fs.defaultFS","hdfs://master:9000");
+    //获取文件系统的客户端对象
+    FileSystem fileSystem = FileSystem.get(configuration);
+    //设置身份信息，用于访问linux。否则会默认以windows的管理员访问，导致没有权限操作
+    System.setProperty("HADOOP_USER_NAME","root");
+    /**
+     * 拷贝方法1：直接用自带的API文档，只能下载到本地，如果没特殊要求优先使用
+     */
+    fileSystem.copyToLocalFile(new Path("/mytest/hello1.txt"),new Path("E:///hello2.txt"));
+    /**
+     * 拷贝方法2：使用流文件拷贝,自由度更高
+     */
+    InputStream in = fileSystem.open(new Path("/mytest/hello1.txt"));//选择hadoop平台上要上传的文件，并返回InputStream流
+    OutputStream out = new FileOutputStream("E://下载/hello.txt");//下载到本地的路径（必须填写文件名，类似浏览器中下载的选择）
+    //拷贝文件
+    IOUtils.copyBytes(in, out, 4096, true);//4096表示用来拷贝的buffer大小（buffer是缓冲区）--缓冲区大小; true - 是否关闭数据流，如果是false，就在finally里关掉
+}
+```
+
+
+
+
+
+#### 9.案例八：在hdfs平台上执行复制文件（略难）
+
+```java
+/**
+ *  文件复制，相当于hadoop fs -cp指令
+ * org.apache.hadoop.fs.FileUtil文档：http://hadoop.apache.org/docs/stable/api/org/apache/hadoop/fs/FileUtil.html
+ */
+@Test
+public void testCopy() throws Exception{
+    //构造一个配置参数对象，设置一个参数：要访问的HDFS的URI
+    Configuration configuration = new Configuration();
+    //指定要访问的HDFS地址（本例指向伪分布模式的虚拟机）
+    configuration.set("fs.defaultFS","hdfs://master:9000");
+    //设置身份信息，用于访问linux。否则ew会默认以windows的管理员访问，导致没有权限操作
+    System.setProperty("HADOOP_USER_NAME","root");
+    //获取文件系统的客户端对象
+    FileSystem fileSystem = FileSystem.get(configuration);
+    //fileSystem.get(new URI("hdfs://master"),configuration,"root");
+    //拷贝文件
+    //参数2：要拷贝的文件源；参数4：要拷贝到的路径；第五个参数：拷贝结束后是否删除源文件，false表示不删除
+    FileUtil.copy(fileSystem,new Path("/mytest/hello1.txt"),fileSystem,new Path("/mytest/hello2.txt"),false,configuration);
+}
+```
+
+
+
+#### 10.案例九：在hdfs平台上显示目录下的所有文件（不包含目录）
+
+```java
+/**
+ * 显示指定路径下的所有文件（不包括文件夹），类似于hadoop fs -ls命令，但有区别，因为不显示目录
+ */
+@Test
+public void testListFiles() throws Exception{
+    //构造一个配置参数对象，设置一个参数：要访问的HDFS的URI
+    Configuration configuration = new Configuration();
+    //指定要访问的HDFS地址（本例指向伪分布模式的虚拟机）
+    configuration.set("fs.defaultFS","hdfs://master:9000");
+    //设置身份信息，用于访问linux。否则会默认以windows的管理员访问，导致没有权限操作
+    System.setProperty("HADOOP_USER_NAME","root");
+    //获取文件系统的客户端对象
+    FileSystem fileSystem = FileSystem.get(configuration);
+    //获取指定目录下的所有文件。第一个参数表示要遍历的路径，第二个参数true表示递归查询所有文件
+    RemoteIterator<LocatedFileStatus> listFiles = fileSystem.listFiles(new Path("/mytest"), true);
+    while (listFiles.hasNext()) {//如果数组还有下一个文件（含目录）
+        LocatedFileStatus fileStatus = listFiles.next();
+        System.out.print(fileStatus.getPath() + "\t");//获取该文件的路径，如hdfs://master:9000/mytest/hello1.txt
+        System.out.print(fileStatus.getPath().getName() + "\t");//获取文件名字
+        System.out.print(fileStatus.getBlockSize() + "\t");//文件块的大小
+        System.out.print(fileStatus.getPermission() + "\t");///文件权限信息
+        System.out.print(fileStatus.getReplication() + "\t");//Replication，副本数,通过java api默认上传的是3份，可以通过这里。
+        System.out.println(fileStatus.getLen());//文件大小，实际大小
+    }
+}
+```
+
+
+
+
+
+#### 11.案例十：在hdfs平台上显示目录下的所有文件（非递归，不包含子目录里的文件）
+
+```java
+/**
+ * 显示指定路径下的所有文件（非递归），同hadoop fs -ls命令
+ */
+@Test
+public void testListStatus() throws Exception{
+    //构造一个配置参数对象，设置一个参数：要访问的HDFS的URI
+    Configuration configuration = new Configuration();
+    //指定要访问的HDFS地址（本例指向伪分布模式的虚拟机）
+    configuration.set("fs.defaultFS","hdfs://master:9000");
+    //设置身份信息，用于访问linux。否则会默认以windows的管理员访问，导致没有权限操作
+    System.setProperty("HADOOP_USER_NAME","root");
+    //获取文件系统的客户端对象
+    FileSystem fileSystem = FileSystem.get(configuration);
+    //获取指定目录下的所有文件。第一个参数表示要遍历的路径，第二个参数true表示递归查询所有文件
+    FileStatus[] fileStatuses = fileSystem.listStatus(new Path("/mytest"));
+    for(FileStatus fileStatus:fileStatuses){//遍历所有文件
+        System.out.print(fileStatus.getPath() + "\t");//获取该文件的路径，如hdfs://master:9000/mytest/hello1.txt
+        System.out.print(fileStatus.getPath().getName() + "\t");//获取文件名字
+        System.out.print(fileStatus.getBlockSize() + "\t");//文件块的大小
+        System.out.print(fileStatus.getPermission() + "\t");///文件权限信息
+        System.out.print(fileStatus.getReplication() + "\t");//Replication，副本数,通过java api默认上传的是3份，可以通过这里。
+        System.out.println(fileStatus.getLen());//文件大小，实际大小
+    }
+}
+```
+
+
+
+#### 12.案例十一：在hdfs平台上显示目录下的所有文件（递归，包含子目录里的文件）
+
+```java
+/**
+ * 显示指定路径下的所有文件（递归），同hadoop fs -ls -R命令
+ */
+private void listStatus2Recursive(String path) throws Exception{
+    //构造一个配置参数对象，设置一个参数：要访问的HDFS的URI
+    Configuration configuration = new Configuration();
+    //指定要访问的HDFS地址（本例指向伪分布模式的虚拟机）
+    configuration.set("fs.defaultFS","hdfs://master:9000");
+    //设置身份信息，用于访问linux。否则会默认以windows的管理员访问，导致没有权限操作
+    System.setProperty("HADOOP_USER_NAME","root");
+    //获取文件系统的客户端对象
+    FileSystem fileSystem = FileSystem.get(configuration);
+    //获取指定目录下的所有文件和目录
+    FileStatus[] fileStatuses = fileSystem.listStatus(new Path(path));
+    for(FileStatus fileStatus:fileStatuses){//遍历所有文件
+        if(fileStatus.isDirectory()){//如果是目录
+            listStatus2Recursive(fileStatus.getPath().toString());//递归调用
+        }else{//如果是文件，则输出文件信息
+            System.out.print(fileStatus.getPath() + "\t");//获取该文件的路径，如hdfs://master:9000/mytest/hello1.txt
+            System.out.print(fileStatus.getPath().getName() + "\t");//获取文件名字
+            System.out.print(fileStatus.getBlockSize() + "\t");//文件块的大小
+            System.out.print(fileStatus.getPermission() + "\t");///文件权限信息
+            System.out.print(fileStatus.getReplication() + "\t");//Replication，副本数,通过java api默认上传的是3份，可以通过这里。
+            System.out.println(fileStatus.getLen());//文件大小，实际大小
+        }
+    }
+}
+
+//测试递归目录
+@Test
+public void testListStatus2Recursive () throws Exception{
+    listStatus2Recursive("/mytest");
+}
+```
+
+
+
+
+
+#### 13.综合案例：FileSystem类创建、删除目录，上传文件
+
+**①需求**
+
+1. 在hdfs上分别创建目录：/windows/test/test1，/windows/test/test2。
+2. 将hdfs上的/windows/test/test2目录重命名为test3目录
+3. 将本地windows下的d:/hello_windows.txt文件上传到hdfs上的/windows/test目录下的test1目录和test3目录
+4. 删除/windows/test/test3目录
+
+**②参考代码**
+
+```java
+**
+ * 综合案例：基本文件操作
+ * 需求
+ * a.在hdfs上分别创建目录：/windows/test/test1，/windows/test/test2。
+ * b.将hdfs上的/windows/test/test2目录重命名为test3目录
+ * c.将本地windows下的d:/hello_windows.txt文件上传到hdfs上的/windows/test目录下的test1目录和test3目录
+ * d.删除/windows/test/test3目录
+ */
+@Test
+public void test1() throws Exception {
+    //构造一个配置参数对象，设置一个参数：要访问的HDFS的URI
+    Configuration configuration = new Configuration();
+    //指定要访问的HDFS地址（本例指向伪分布模式的虚拟机）
+    configuration.set("fs.defaultFS","hdfs://master:9000");
+    //设置身份信息，用于访问linux。否则会默认以windows的管理员访问，导致没有权限操作
+    System.setProperty("HADOOP_USER_NAME","root");
+    //获取文件系统的客户端对象
+    FileSystem fileSystem = FileSystem.get(configuration);
+    //a.在hdfs上分别创建目录：/windows/test/test1，/windows/test/test2。
+    fileSystem.mkdirs(new Path("/windows/test/test1"));
+    fileSystem.mkdirs(new Path("/windows/test/test2"));
+    //将hdfs上的/windows/test/test2目录重命名为test3目录
+    fileSystem.rename(new Path("/windows/test/test2"),new Path("/windows/test/test3"));
+    //c.将本地windows下的d:/hello_windows.txt文件上传到hdfs上的/windows/test目录下的test1目录和test3目录
+    if(fileSystem.exists(new Path("/windows/test/test3"))){//如果/windows/test/test3目录存在
+        //将本地windows下的d:/hello_windows.txt文件上传到test1和test3目录
+        fileSystem.copyFromLocalFile(new Path("d:/hello_windows.txt"),new Path("/windows/test/test1"));
+        fileSystem.copyFromLocalFile(new Path("d:/hello_windows.txt"),new Path("/windows/test/test3"));
+        //d.删除/windows/test/test3目录
+        if(fileSystem.delete(new Path("/windows/test/test3"),true)){//true表示如果是非空目录也删除；如果是false则不删除
+            System.out.println("目录test3删除成功");
+        }else{
+            System.out.println("目录test3删除失败");
+        }
+    }
+    fileSystem.close();//关闭文件系统
+}
+```
+
