@@ -1254,6 +1254,18 @@ System.setProperty("HADOOP_USER_NAME","root");
 
 
 
+
+
+#### 案例准备工作
+
+在[com.lcvc.hdfs_practice]()包中创建[TestHdfsControl]()类
+
+ ![image-20231009190857691](./第3章 HDFS分布式文件系统.assets/image-20231009190857691.png)
+
+接下来我们的测试方法都写在该类中
+
+
+
 #### 2.案例一：判断hdfs上的文件是否存在
 
 ```java
@@ -1363,10 +1375,10 @@ public void testView() throws Exception{
     Configuration configuration = new Configuration();
     //指定要访问的HDFS地址（本例指向伪分布模式的虚拟机）
     configuration.set("fs.defaultFS","hdfs://master:9000");
-    //获取文件系统的客户端对象
-    FileSystem fileSystem = FileSystem.get(configuration);
     //设置身份信息，用于访问linux。否则会默认以windows的管理员访问，导致没有权限操作
     System.setProperty("HADOOP_USER_NAME","root");
+    //获取文件系统的客户端对象
+    FileSystem fileSystem = FileSystem.get(configuration);
     Path path = new Path("/mytest/hello1.txt");//获取文件路径
     FSDataInputStream fsDataInputStream = fileSystem.open(path);
     int c;
@@ -1594,34 +1606,132 @@ public void testListStatus2Recursive () throws Exception{
  * c.将本地windows下的d:/hello_windows.txt文件上传到hdfs上的/windows/test目录下的test1目录和test3目录
  * d.删除/windows/test/test3目录
  */
-@Test
-public void test1() throws Exception {
-    //构造一个配置参数对象，设置一个参数：要访问的HDFS的URI
-    Configuration configuration = new Configuration();
-    //指定要访问的HDFS地址（本例指向伪分布模式的虚拟机）
-    configuration.set("fs.defaultFS","hdfs://master:9000");
-    //设置身份信息，用于访问linux。否则会默认以windows的管理员访问，导致没有权限操作
-    System.setProperty("HADOOP_USER_NAME","root");
-    //获取文件系统的客户端对象
-    FileSystem fileSystem = FileSystem.get(configuration);
-    //a.在hdfs上分别创建目录：/windows/test/test1，/windows/test/test2。
-    fileSystem.mkdirs(new Path("/windows/test/test1"));
-    fileSystem.mkdirs(new Path("/windows/test/test2"));
-    //将hdfs上的/windows/test/test2目录重命名为test3目录
-    fileSystem.rename(new Path("/windows/test/test2"),new Path("/windows/test/test3"));
-    //c.将本地windows下的d:/hello_windows.txt文件上传到hdfs上的/windows/test目录下的test1目录和test3目录
-    if(fileSystem.exists(new Path("/windows/test/test3"))){//如果/windows/test/test3目录存在
-        //将本地windows下的d:/hello_windows.txt文件上传到test1和test3目录
-        fileSystem.copyFromLocalFile(new Path("d:/hello_windows.txt"),new Path("/windows/test/test1"));
-        fileSystem.copyFromLocalFile(new Path("d:/hello_windows.txt"),new Path("/windows/test/test3"));
-        //d.删除/windows/test/test3目录
-        if(fileSystem.delete(new Path("/windows/test/test3"),true)){//true表示如果是非空目录也删除；如果是false则不删除
-            System.out.println("目录test3删除成功");
-        }else{
-            System.out.println("目录test3删除失败");
-        }
+```
+
+
+
+第一步，在src/main/java中创建com.lcvc.Controller
+
+ ![image-20231009203018594](./第3章 HDFS分布式文件系统.assets/image-20231009203018594.png)
+
+
+
+创建FileSystemController类
+
+ ![image-20231009203052663](./第3章 HDFS分布式文件系统.assets/image-20231009203052663.png)
+
+
+
+参考代码
+
+```java
+package com.lcvc.Controller;
+
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+
+import java.io.IOException;
+
+public class FileSystemController {
+
+    // 获取FileSystem
+    public FileSystem getFileSystem() throws IOException {
+        Configuration configuration = new Configuration();
+        configuration.set("fs.defaultFS", "hdfs://master:9000");
+        System.setProperty("HADOOP_USER_NAME", "root");
+        return FileSystem.get(configuration);
     }
-    fileSystem.close();//关闭文件系统
+
+    // 创建文件夹
+    public void makeDirectory(String pathName) throws IOException {
+        // 获取文件系统
+        FileSystem fs = getFileSystem();
+        // 判断文件/目录是否存在，如果不存在执行创建操作
+        if (!fs.exists(new Path(pathName))){
+            fs.mkdirs(new Path(pathName));
+        } else {
+            System.out.println(pathName + "已经存在！");
+        }
+
+        fs.close(); // 关闭系统
+    }
+
+    // 重命名
+    public void fileRename(String oldPathName, String newPathName) throws IOException {
+        // 获取文件系统
+        FileSystem fs = getFileSystem();
+        // 判断文件是否存在，如果存在执行移动操作
+        if (!fs.exists(new Path(oldPathName))){
+            System.out.println(oldPathName + "不存在！");
+        } else{
+            fs.rename(new Path(oldPathName), new Path(newPathName));
+        }
+        fs.close(); // 关闭系统
+    }
+
+    // 上传本地文件到hdfs系统
+    public void copyFromLocal(String localPathName, String hdfsPathName) throws IOException {
+        // 获取文件系统
+        FileSystem fs = getFileSystem();
+        // 上传文件
+        fs.copyFromLocalFile(new Path(localPathName), new Path(hdfsPathName));
+        // 关闭系统
+        fs.close();
+    }
+
+    // 下载hdfs文件到本地
+    public void copyToLocal(String hdfsPathName, String localPathName) throws IOException {
+        // 获取文件系统
+        FileSystem fs = getFileSystem();
+        // 下载文件
+        fs.copyToLocalFile(new Path(hdfsPathName), new Path(localPathName));
+        // 关闭系统
+        fs.close();
+    }
+
+
+    // 删除hdfs上的文件
+    public void deleteFile(String pathName) throws IOException {
+        // 获取文件系统
+        FileSystem fs = getFileSystem();
+        // 判断文件是否存在，如果存在执行删除操作
+        if (!fs.exists(new Path(pathName))){
+            System.out.println(pathName + "不存在！");
+        } else{
+            fs.delete(new Path(pathName), true);
+        }
+        // 关闭系统
+        fs.close();
+    }
+
+    public static void main(String[] args) throws IOException {
+        // 实例化FileSystemController，测试
+        FileSystemController fileSystemControl = new FileSystemController();
+        // 第1题：在hdfs上分别创建目录：/windows/test/test1，/windows/test/test2.
+        fileSystemControl.makeDirectory("/windows/test/test1/");
+        fileSystemControl.makeDirectory("/windows/test/test2/");
+
+        // 第2题：将hdfs上的/windows/test/test2目录重命名为test3目录
+        fileSystemControl.fileRename("/windows/test/test2", "/windows/test/test3");
+
+        // 第3题：将本地windows下的d:/hello_windows.txt文件上传到hdfs上的/windows/test目录下的test1目录和test3目录
+        fileSystemControl.copyFromLocal("d:/hello_windows.txt", "/windows/test/test1");
+        fileSystemControl.copyFromLocal("d:/hello_windows.txt", "/windows/test/test3");
+
+        // 第4题：删除/windows/test/test3目录
+        fileSystemControl.deleteFile("/windows/test/test3/");
+
+    }
 }
 ```
+
+
+
+
+
+
+
+### 3.7.6 搭建操作HDFS的Java Web系统（难度高）
 
