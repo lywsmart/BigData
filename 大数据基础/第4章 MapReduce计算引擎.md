@@ -52,7 +52,7 @@ MapReduce的服务节点为集群的以下节点：
 
 
 
-### 4.1.3 MapReduce工作原理
+### 4.1.3 MapReduce两大过程
 
 ​	MapReduce计算海量数据时，每个MapReduce程序被初始化为一个工作任务，这个工作任务在运行时会经历[Map过程]()和[Reduce过程]()。
 
@@ -104,6 +104,118 @@ MapReduce的服务节点为集群的以下节点：
 ​	但是，对于大多数数据的计算来说，都是需要Reduce过程的，并且由于数据计算繁琐，需要设定多个Reduce过程。
 
 <img src="./第4章 MapReduce计算引擎.assets/image-20231016114817041.png" alt="image-20231016114817041" style="zoom:67%;" />
+
+
+
+### 4.1.5 HashMap的键值对类型
+
+我们现在有这么一个需求，需要将班级上所有学生的成绩存储到一个集合中，并且能快速找到该数据。
+
+比如
+
+| 姓名 | 成绩 |
+| :--: | :--: |
+| 小明 | 90.5 |
+| 小红 |  60  |
+| 小蓝 | 71.5 |
+
+在我们以前的学习中，我们在Java中学习过数组，我们用数组存储成绩。
+
+```java
+        // 成绩列表
+        double[] scores = new double[] {90.5, 60, 71.5};
+```
+
+这样成绩是存储完成了，但是我们并不能知道成绩都是谁的成绩，比如我们想要找到小红的成绩，得知道小红的索引。
+
+因此我们必须创建一个同名顺序的姓名数组。
+
+```java
+        // 姓名数组
+        String[] names = new String[] {"小明", "小红", "小蓝"};
+```
+
+就通过查找小红在数组的索引实现查找小红成绩。
+
+<img src="./第4章 MapReduce计算引擎.assets/image-20231017102104011.png" alt="image-20231017102104011" style="zoom:67%;" />
+
+
+
+实现代码如下：
+
+```java
+public class ArrayTest {
+    public static void main(String[] args) {
+
+        // 成绩列表
+        double[] scores = new double[] {90.5, 60, 71.5};
+        // 姓名数组
+        String[] names = new String[] {"小明", "小红", "小蓝"};
+
+        // 查找小红的成绩
+
+        // 1.先查找小红的索引
+        int idx = -1;
+        for (int i = 0; i < names.length; i++) {
+            if (names[i].equals("小红")) {
+                idx = i;
+            }
+        }
+
+        // 2.输出小红的成绩
+        System.out.println(scores[idx]);
+
+    }
+}
+```
+
+
+
+但我们发现其实中间的索引是完全不需要的，我们其实只需要知道小明对应90.5，小红对应60，小蓝对应71.5就行了。
+
+<img src="./第4章 MapReduce计算引擎.assets/image-20231017102608830.png" alt="image-20231017102608830" style="zoom: 67%;" />
+
+也就是
+
+- 小明-->90.5
+- 小红-->60
+- 小蓝-->71.5
+
+这样的结构我们称之为[键值对结构]()，也就是[Key-->Value]()结构。
+
+而存储键值对结构的集合我们称之为[Map类型]()。
+
+#### ① 键值对结构和Map类型
+
+#### ② 使用Map类型实现WordCount词频统计
+
+```java
+/**
+ * 用java的常规方法来编写wordcount的实现方法
+ */
+import java.util.HashMap;
+import java.util.Map;
+
+public class WordCountDemo {
+    public static void main(String[] args) {
+        String text="hello,world,hello,hello,world,hello,mapreduce";
+        String [] spString = text.split(",");//  \s+表示匹配一个或多个空格
+        Map<String,Integer> map=new HashMap<String,Integer>();//用map记录每个单词的出现次数，如hello->2
+        for(String s:spString){
+            if(map.containsKey(s)){//如果该单词已经在集合中存在，即已经统计过单词个数
+                map.put(s,map.get(s)+1);//让该单词的数+1
+            }else{//如果该单词在集合中不存在，即第一次统计该单词
+                map.put(s,1);//让该单词的值为1
+            }
+        }
+        //输出每个单词的出现次数
+        for (String key : map.keySet()){
+            System.out.println(key + ":\t" + map.get(key));
+        }
+    }
+}
+
+```
 
 
 
@@ -331,7 +443,7 @@ public class WordCountDriver {
 
 ![image-20231016153303585](./第4章 MapReduce计算引擎.assets/image-20231016153303585.png)
 
-把[hadoop.dll]()放在[c盘windows\system32]()里面，前提是环境变量都配好
+把[hadoop.dll]()放在[c盘windows\system32]()里面。
 
 
 
@@ -535,10 +647,468 @@ hadoop jar /opt/software/MapReduceDemo.jar com.lcvc.mr.wordcountonline.WordCount
 
 
 
-## 4.3 MapReduce框架原理（待续）
+## 4.3 MapReduce工作原理（了解）
+
+MapReduce编程模型开发简单且功能强大，专门为并行处理大规模数据量而设计。
+
+### 4.3.1 MapReduce的工作过程
+
+<img src="./第4章 MapReduce计算引擎.assets/image-20231030095132839.png" alt="image-20231030095132839" style="zoom:100%;" />
+
+
+
+### 4.3.2 MapTask处理数据的流程
+
+<img src="./第4章 MapReduce计算引擎.assets/image-20231030095328840.png" alt="image-20231030095328840"  />
 
 
 
 
 
-## 4.4 MapReduce应用案例（待续）
+### 4.3.3 ReduceTask处理数据的流程
+
+<img src="./第4章 MapReduce计算引擎.assets/image-20231030095416917.png" alt="image-20231030095416917"  />
+
+
+
+### 4.4.4 Shuffle的工作流程
+
+<img src="./第4章 MapReduce计算引擎.assets/image-20231030095531169.png" alt="image-20231030095531169"  />
+
+
+
+
+
+## 4.4 MapReduce应用案例
+
+为展示方便，案例编写的方式都是本地运行模式，请同学们自己改写成Jar模式
+
+
+
+在MR大数据分析中，处理的大部分数据是文本数据（HDFS上），这些数据会以固定的逻辑结构进行存储，比如日志文件，销售记录，点击记录等，他们会遵循一定的格式。
+
+比如：
+
+ <img src="./第4章 MapReduce计算引擎.assets/image-20231030103220686.png" alt="image-20231030103220686" style="zoom:67%;" />      <img src="./第4章 MapReduce计算引擎.assets/image-20231030103340166.png" alt="image-20231030103340166" style="zoom: 50%;" />
+
+
+
+![image-20231030103444836](./第4章 MapReduce计算引擎.assets/image-20231030103444836.png)
+
+
+
+对于这样的数据，我们首先要通过**数据字典**去了解我们的**数据的定义方式及分解结构**，比如对上面数据的分解结构
+
+![img](./第4章 MapReduce计算引擎.assets/2416314-20220327180929973-677849174.png)
+
+
+
+### 案例一：超市商品销售额统计
+
+在[src/main/java](src/main/java)目录创建[com.lcvc.mr.salecount]()包。
+
+
+
+把准备的数据集[sale.csv]()放到[src/main/resources/sale](src/main/resources/sale)目录中：
+
+ <img src="./第4章 MapReduce计算引擎.assets/image-20231030103754857.png" alt="image-20231030103754857" style="zoom:50%;" />
+
+
+
+
+
+首先我们要了解数据的分解结构，[sale.csv](src/main/resources/sale)数据集的结构是
+
+每一行是单次销售记录，对于每一行的数据分解结构如下：
+
+```
+商品名称,销售数量,商品单价
+```
+
+<img src="./第4章 MapReduce计算引擎.assets/image-20231030104402492.png" alt="image-20231030104402492" style="zoom:67%;" />
+
+理解为表结构，就是：
+
+ <img src="./第4章 MapReduce计算引擎.assets/image-20231030104537238.png" alt="image-20231030104537238" style="zoom: 50%;" />
+
+
+
+对数据结构的分析，我们知道行记录依次为**商品名称**,**销售数量**,**商品单价**，字段之间用逗号分割，根据分析，我们可以涉及程序。
+
+1. 按行读取数据
+2. 根据逗号进行split()操作
+3. 计算每行记录的  **销售额 = 销售数量 * 商品单价**
+4. 汇总所有记录的销售额
+
+
+
+实现代码如下：
+
+#### ① 编写Mapper类
+
+**SaleCountMapper类**
+
+```java
+package com.lcvc.mr.salecount;
+
+
+import org.apache.hadoop.io.FloatWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+
+import java.io.IOException;
+
+public class SaleCountMapper extends Mapper<LongWritable, Text, Text, FloatWritable> {
+
+    // KeyOut
+    Text keyOut = new Text();
+    // ValueOut
+    FloatWritable valueOut = new FloatWritable();
+
+    @Override
+    protected void map(LongWritable key, Text value, Mapper<LongWritable, Text, Text, FloatWritable>.Context context) throws IOException, InterruptedException {
+        // 分割语义
+        // 商品类,销售量,单价
+
+        String[] temp = value.toString().split(",");
+
+        if (temp.length == 3) {
+            // 商品类
+            String goodType = temp[0];
+            // 销售量
+            float volume = Float.parseFloat(temp[1]);
+            // 单价
+            float unitPrice = Float.parseFloat(temp[2]);
+            // 销售额
+            float sales = volume * unitPrice;
+
+            // 设置KeyOut, ValueOut
+            keyOut.set(goodType);
+            valueOut.set(sales);
+
+            // 提交输出
+            context.write(keyOut, valueOut);
+        }
+    }
+
+}
+```
+
+
+
+#### ② 编写Reducer类
+
+**SaleCountReducer类**
+
+```java
+package com.lcvc.mr.salecount;
+
+
+import org.apache.hadoop.io.FloatWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+
+import java.io.IOException;
+
+public class SaleCountReducer extends Reducer<Text, FloatWritable, Text, FloatWritable> {
+    // 设置keyOut，valueOut
+    Text keyOut = new Text();
+    FloatWritable valueOut = new FloatWritable();
+    float sum;
+
+    @Override
+    protected void reduce(Text key, Iterable<FloatWritable> values, Reducer<Text, FloatWritable, Text, FloatWritable>.Context context) throws IOException, InterruptedException {
+        // 每次清空
+        sum = 0;
+
+        // 遍历相加
+        for (FloatWritable value: values) {
+            sum += value.get();
+        }
+        // 设置输出
+        keyOut.set(key);
+        valueOut.set(sum);
+
+        // 提交输出
+        context.write(keyOut, valueOut);
+    }
+}
+
+```
+
+
+
+#### ③ 编写Driver类
+
+**SaleCountDriver类**
+
+```java
+package com.lcvc.mr.salecount;
+
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.FloatWritable;
+import org.apache.hadoop.io.Text;
+
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+import java.io.IOException;
+
+public class SaleCountDriver {
+    public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException {
+        // 1.获取Configuration
+        Configuration configuration = new Configuration();
+        // 2.获取Job对象
+        Job job = Job.getInstance(configuration);
+
+        // 3.关联主程序
+        job.setJarByClass(SaleCountDriver.class);
+
+        // 4.关联Mapper和Reduce
+        job.setMapperClass(SaleCountMapper.class);
+        job.setReducerClass(SaleCountReducer.class);
+
+        // 5.设置输出类型
+        job.setMapOutputKeyClass(Text.class);
+        job.setOutputValueClass(FloatWritable.class);
+
+        // 6.设置输出路径
+        FileInputFormat.setInputPaths(job,"src/main/resources/sale");
+        FileOutputFormat.setOutputPath(job,new Path("/outputsales"));
+
+        // 7.提交任务
+        boolean result = job.waitForCompletion(true);
+
+        // 退出
+        System.exit(result ? 0:1);
+    }
+}
+
+```
+
+
+
+### 案例二：处理带缺省值的超市商品数据
+
+在案例一中，我们已经实现了对超市商品数据的销售额统计，但是在真实数据中，往往会存在大量的缺失值，有的是**记录缺失**，有的是**值缺失**，我们首先需要处理一下这部分数据。
+
+ <img src="./第4章 MapReduce计算引擎.assets/image-20231030100629513.png" alt="image-20231030100629513" style="zoom:50%;" />  <img src="./第4章 MapReduce计算引擎.assets/image-20231030100742419.png" alt="image-20231030100742419" style="zoom: 80%;" />              
+
+
+
+我们对原始数据的处理和大部分的计算都是在**Map过程**，相应的功能代码需要在**Mapper类实现**
+
+对于缺失值的处理有很多方法，我们这里采用最简单的**删除缺失值**的办法。
+
+
+
+我们首先要设计一个判断缺失值的方法。
+
+根据逗号进行split()操作，对于正常记录和缺失记录会分别得到以下结果：
+
+<img src="./第4章 MapReduce计算引擎.assets/image-20231030101800854.png" alt="image-20231030101800854" style="zoom: 33%;" />
+
+对于有缺失值的记录，会存在切割出[""]()空字符串的情况，我们只要判断split()操作的结果数组中是否含有[""]()空字符串，就能判断是否有缺失值。
+
+功能实现代码：
+
+```java
+    /**
+     * 判断数组是否包含null
+     * @return  true or false
+     */
+    public boolean isContainerNull(String[] temp) {
+        for (String s: temp) {
+            if (s.isEmpty()){
+                return false;
+            }
+        }
+        return true;    // 遍历后不包含null时返回true
+    }
+```
+
+
+
+
+
+把它应用到**Mapper类**中：
+
+```java
+import org.apache.hadoop.io.FloatWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+
+import java.io.IOException;
+
+public class SaleCountMapper extends Mapper<LongWritable, Text, Text, FloatWritable> {
+
+    // KeyOut
+    Text keyOut = new Text();
+    // ValueOut
+    FloatWritable valueOut = new FloatWritable();
+
+    @Override
+    protected void map(LongWritable key, Text value, Mapper<LongWritable, Text, Text, FloatWritable>.Context context) throws IOException, InterruptedException {
+        // 分割语义
+        // 商品类,销售量,单价
+
+        String[] temp = value.toString().split(",");
+
+        if (temp.length == 3 && isContainerNull(temp)) {
+            // 商品类
+            String goodType = temp[0];
+            // 销售量
+            float volume = Float.parseFloat(temp[1]);
+            // 单价
+            float unitPrice = Float.parseFloat(temp[2]);
+            // 销售额
+            float sales = volume * unitPrice;
+
+            // 设置KeyOut, ValueOut
+            keyOut.set(goodType);
+            valueOut.set(sales);
+
+            // 提交输出
+            context.write(keyOut, valueOut);
+        }
+    }
+
+    /**
+     * 判断数组是否包含null
+     * @return  true or false
+     */
+    public boolean isContainerNull(String[] temp) {
+        for (String s: temp) {
+            if (s.isEmpty()){
+                return false;
+            }
+        }
+        return true;    // 遍历后不包含null时返回true
+    }
+}
+```
+
+
+
+
+
+
+
+
+
+### 案例三：TopN（难度较高）
+
+```java
+package com.lcvc.mr.TopN;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+import java.util.TreeMap;
+public class TopNMapper extends Mapper<LongWritable, Text, NullWritable, IntWritable> {
+        private TreeMap<Integer, String> repToRecordMap = new TreeMap<Integer, String>();
+        @Override
+        public void map(LongWritable key, Text value, Context context){
+            String line = value.toString();
+            String[] nums = line.split(" ");
+            for (String num : nums){
+                repToRecordMap.put(Integer.parseInt(num), " ");
+                if (repToRecordMap.size() > 5){
+                    repToRecordMap.remove(repToRecordMap.firstKey());
+                }
+            }
+        }
+        @Override
+        protected void cleanup(Context context){
+            for (Integer i : repToRecordMap.keySet()){
+                try {
+                    context.write(NullWritable.get(), new IntWritable(i));
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
+            }
+        }
+
+    }
+```
+
+
+
+```java
+package com.lcvc.mr.TopN;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.mapreduce.Reducer;
+import java.io.IOException;
+import java.util.Comparator;
+import java.util.TreeMap;
+
+public class TopNReducer extends Reducer<NullWritable, IntWritable,
+        NullWritable, IntWritable> {
+    private TreeMap<Integer, String> repToRecordMap = new TreeMap<Integer,
+            String>(new Comparator<Integer>() {
+        public int compare(Integer o1, Integer o2) {
+            return o2 - o1;
+           /*返回正数表示：o1小于o2
+             返回0表示：o1和o2相等
+             返回负数表示：01大于o2
+            */
+        }
+    });
+    public void reduce(NullWritable key, Iterable<IntWritable>values,
+                       Context context)throws IOException, InterruptedException{
+        for (IntWritable value : values){
+            repToRecordMap.put(value.get(), " ");
+            if (repToRecordMap.size() > 5){
+                repToRecordMap.remove(repToRecordMap.firstKey());
+            }
+        }
+        for (Integer i : repToRecordMap.keySet()){
+            context.write(NullWritable.get(), new IntWritable(i));
+        }
+    }
+}
+
+```
+
+
+
+```java
+package com.lcvc.mr.TopN;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+public class TopNDriver {
+    public static void main(String[] args) throws Exception{
+        Configuration conf = new Configuration();
+        Job job = Job.getInstance(conf);
+        job.setJarByClass(TopNDriver.class);
+        job.setMapperClass(TopNMapper.class);
+        job.setReducerClass(TopNReducer.class);
+        job.setNumReduceTasks(1);
+        job.setMapOutputKeyClass(NullWritable.class);
+        job.setMapOutputValueClass(IntWritable.class);
+        job.setOutputKeyClass(NullWritable.class);
+        job.setOutputValueClass(IntWritable.class);
+        FileInputFormat.setInputPaths(job, new Path("/TopN/input"));
+        FileOutputFormat.setOutputPath(job, new Path("/TopN/output"));
+        boolean res = job.waitForCompletion(true);
+        System.exit(res ? 0 : 1);
+    }
+}
+```
+
+
+

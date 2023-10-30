@@ -833,6 +833,12 @@ vi $HADOOP_HOME/etc/hadoop/slaves
 
 ### 3.6.6 热增加节点
 
+删除slave3上的data和name文件夹（这是属于master，要删除）
+
+```
+[root@slave3 ~]# rm -rf $HADOOP_HOME/dfs
+```
+
 在多台服务器都在运行的环境中[热增加节点]()，可以不用关闭集群重新启动
 
 直接在slave3上启动datanode，nodemanager
