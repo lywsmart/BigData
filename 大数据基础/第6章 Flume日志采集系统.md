@@ -13,7 +13,7 @@
 - 在master节点上，解压/opt/software目录下的压缩包apache-flume-1.9.0-bin.tar.gz到/usr/local/src目录下：
 
   ```shell
-   tar -zxvf apache-flume-1.9.0-bin.tar.gz -C /usr/local/src
+   tar -zxvf /opt/software/apache-flume-1.9.0-bin.tar.gz -C /usr/local/src
   ```
 
 <img src="./第6章 Flume日志采集系统.assets/image-20221019200040357-16987533378642.png" alt="image-20221019200040357" style="zoom:80%;" />
