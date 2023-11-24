@@ -975,7 +975,8 @@ create table sale (
 	goodType varchar(50),
     volume float,
     unit float
-) row format delimited fields terminated by ","
+) row format delimited 
+fields terminated by ","
 lines terminated by "\n"
 stored as textfile;
 ```
@@ -1570,7 +1571,7 @@ JOIN another_table b ON a.region = b.region;
 |  TIMESTAMP   |                     精确到毫秒的时间戳。                     |
 |     DATE     |         以年/月/日形式描述的日期,格式为 YYYY-MM-DD。         |
 |   INTERVAL   |      表示时间间隔，例如INTERVAL '1' DAY 表示间隔一天。       |
-|    STRING    |                 字符串类型，对长度没有限制。                 |
+|  [STRING]()  | 字符串类型，对长度没有限制。[是Hive中特有的数据类型，等于varchar(无限)]() |
 |   VARCHAR    | 变长字符串类型，长度介于1~65535之间，例如字段的数据类型为VARCHAR(30)，当插入字段的数据为20个字符时，仅占用20个字符的空间。 |
 |     CHAR     | 定长字符串类型，固定长度为255，例如字段的数据类型为CHAR(30)，当插入字段的数据为20个字符时，会占用30个字符的空间，剩下的10个字符用空格代替。 |
 |   BOOLEAN    |               布尔值类型，取值为true或false。                |
@@ -1635,48 +1636,876 @@ public class Test01 {
 
 ​	[HQL]()受到SQL的很大影响，并且两者在很多方面都相似，但还是有一些关键的区别。
 
+### 7.4.0 数据说明
+
+![image-20231123113915224](./第7章 Hive数据仓库.assets/image-20231123113915224.png)
+
+​	我们有如上[sales_data.txt]()数据集，包含了某某大型商城2022年的销售记录，共7个字段，分别是：
+
+```
+1. 销售编号 (sale_id): 这是一个唯一的标识符，用于区分每一条销售记录。它是一个整数。
+2. 产品名称 (product_name): 这个字段表示被销售的产品的名称。
+3. 数量 (quantity): 表示销售的产品数量。这是一个整数。
+4. 销售日期 (sale_date): 销售发生的日期。日期应该覆盖整个2022年。
+5. 单价 (unit_price): 每个产品的销售单价。这是一个浮点数。
+6. 客户编号 (customer_id): 表示购买产品的客户的唯一编号。
+7. 销售渠道 (sales_channel): 表示产品销售的渠道。
+```
+
+​	本数据集包含了100万条数据，考虑使用Hive来分析这些销售记录，分析该商城2022年的经营情况。
+
+<img src="./第7章 Hive数据仓库.assets/image-20231123114552161.png" alt="image-20231123114552161" style="zoom:50%;" />
+
 ### 7.4.1 数据库操作
 
 ​	本小节的目标是熟悉数据库操作，能够使用HiveQL语句完成创建数据库的操作
 
 #### ① 创建数据库
 
-[创建数据库]()的语法格式如下：
+​	[创建数据库]()的语法格式如下：
 
 ```hive
-CREATE DATABASE [IF NOT EXISTS] database_name
+CREATE DATABASE [IF NOT EXISTS] 数据库名
 [COMMENT database_comment]
 [LOCATION hdfs_path]
 [WITH DBPROPERTIES (property_name=property_value, ...)];
 ```
 
-•CREATE DATABASE：[创建数据库]()的固定语法。
+​	•CREATE DATABASE：[创建数据库]()的固定语法。
 
-•IF NOT EXISTS：为可选，用于[判断创建的数据库是否存在]()，若存在则不创建。
+​	•IF NOT EXISTS：为可选，用于[判断创建的数据库是否存在]()，若存在则不创建。
 
-•database_name：用于自定义[数据库的名称]()。
+​	•database_name：用于自定义[数据库的名称]()。
 
-•COMMENT database_comment：为可选，用于自定义[数据库的描述信息]()。
+​	•COMMENT database_comment：为可选，用于自定义[数据库的描述信息]()。
 
-•LOCATION hdfs_path：为可选，用于定义数据库在[HDFS存储数据的目录]()。
+​	•LOCATION hdfs_path：为可选，用于定义数据库在[HDFS存储数据的目录]()。
 
-•WITH DBPROPERTIES (property_name=property_value, ...)：为可选，用于自定义[数据库的属性信息]()。
-
-
+​	•WITH DBPROPERTIES (property_name=property_value, ...)：为可选，用于自定义[数据库的属性信息]()。
 
 
+
+​	在hive控制台输入创建数据库的HQL语句
+
+```hive
+create database if not exists hive_db
+comment 'This is my hive_db'
+location '/hive/hive_db'
+with dbproperties ('author'= 'lcvc','date'='2023-09-01');
+```
+
+<img src="./第7章 Hive数据仓库.assets/image-20231123115729516.png" alt="image-20231123115729516" style="zoom: 80%;" />
+
+•定义数据库的描述信息为“This is my hive_db”。
+
+•指定数据库hive_db在HDFS存储数据的目录为/hive/hive_db。
+
+•定义数据库hive_db的两个属性author和date，这两个属性的属性值分别为lcvc和2023-09-01。
+
+
+
+​	在我们完成数据库创建之后，我们也可以在[master:50070]()的web界面查看到已经创建的数据库[文件夹]()
+
+<img src="./第7章 Hive数据仓库.assets/image-20231123120213055.png" alt="image-20231123120213055" style="zoom: 50%;" />
+
+
+
+#### ② 列出所有数据库信息
+
+​	[列出所有数据库信息]()的语法格式如下：
+
+```hive
+show databases;
+```
+
+<img src="./第7章 Hive数据仓库.assets/image-20231123120030203.png" alt="image-20231123120030203" style="zoom:67%;" />
+
+
+
+
+
+#### ② 查看数据库信息
+
+​	[查看数据库信息]()的语法格式如下。
+
+```hive
+DESCRIBE DATABASE [EXTENDED] 数据库名;
+```
+
+​	•DESCRIBE DATABASE：为查看数据库信息的[固定语法]()。
+
+​	•EXTENDED：为[可选]()，用于显示数据库的属性信息。
+
+
+
+​	
+
+​	查看hive_db数据库的属性信息
+
+```hive
+describe database extended hive_db;
+```
+
+<img src="./第7章 Hive数据仓库.assets/image-20231123120814626.png" alt="image-20231123120814626" style="zoom:80%;" />
+
+- hive_db是[数据库名]()
+- This is my hive_db 是[数据库的描述信息]()
+- hdfs://master:9000/hive/hive_db 是数据库在[HDFS存储数据的目录]()
+- root是数据库拥有者的名字([owner_name]())
+- USER是数据库拥有者的类型([owner_type]())
+- {data=2023-09-01, author=lcvc}是自定义的[数据库的属性信息]()
+
+
+
+
+
+#### ③ 修改数据库属性
+
+```hive
+ALTER DATABASE 数据库名 SET DBPROPERTIES (property_name=property_value, ...);
+```
+
+​	•ALTER DATABASE：表示[修改数据库]()的固定语法。
+
+​	•SET DBPROPERTIES：表示[修改数据库属性]()的固定语法。
+
+​	•property_name和property_value：分别用于指定[修改的属性]()，及其对应的[属性值]()。
+
+
+
+
+
+​	**(操作略)**
+
+
+
+#### ④ 删除数据库
+
+```hive
+DROP DATABASE [IF EXISTS] 数据库名 [RESTRICT|CASCADE];
+```
+
+​	•DROP DATABASE：表示[删除数据库]()的固定语法。
+
+​	•IF EXISTS：为可选，表示判断删除的数据库是否存在。
+
+​	•RESTRICT|CASCADE：为可选，表示数据库中[存在表时是否可以]()删除数据库。
+
+
+
+​	**(操作略，别真删)**
+
+
+
+
+
+#### ⑤ 进入数据库
+
+​	[进入到具体的数据库]()进行下一步的操作，如果没有进入数据库操作，默认使用default数据库
+
+```hive
+USE 数据库名;
+```
+
+​	
+
+​	进入hive_db
+
+```hive
+use hive_db;
+```
+
+![image-20231123145102005](./第7章 Hive数据仓库.assets/image-20231123145102005.png)
+
+
+
+​	进入到hive_db后，我们就可以继续进行下一步的表操作。
 
 ### 7.4.2 表操作
+
+​	本节目标：掌握表操作，能够灵活应用HiveQL语句完成创建表的操作
+
+​	Hive表通过[映射]()到存储在HDFS上的数据文件来工作。
+
+
+
+#### ① 创建表（重点）
+
+​	[创建hive内部表]()的语法格式（简单版）如下：
+
+```hive
+CREATE TABLE [IF NOT EXISTS] 表名 (
+    列名1 数据类型,
+    列名2 数据类型,
+    ...
+)
+COMMENT '表的注释'
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '字段分隔符'
+LINES TERMINATED BY '行分隔符'
+STORED AS 文件格式;
+```
+
+- `CREATE TABLE IF NOT EXISTS`: 这个命令用于创建一个新表，如果这个表已经存在，它不会报错。
+- `表名`: 这里指定了你要创建的表的名称。
+- `列名 数据类型`: 在括号内，你需要列出表中的所有列和它们的数据类型。例如，`name STRING`（名字为字符串类型）。
+- `COMMENT`: 后面跟着的是对表的简单描述或注释。
+- `ROW FORMAT DELIMITED`: 这表示行格式是分隔的。
+- `FIELDS TERMINATED BY '字段分隔符'`: 指定了字段之间的分隔符，例如逗号（`,`）或制表符（`\t`）。
+- `LINES TERMINATED BY '行分隔符'`: 指定了行之间的分隔符。
+- `STORED AS 文件格式`: 指定了表数据存储的文件格式，如`TEXTFILE`（文本文件）、`PARQUET`（Parquet格式）、`ORC`（ORC格式）等。
+
+
+
+​	当你删除一个内部表时，[表的元数据和HDFS上的数据文件都会被删除]()。
+
+
+
+​	如何创建一个表，是我们Hive学习的关键，所以本小节会用大量笔墨来介绍如何[根据我们的数据集]()创建对应的表结构。
+
+	##### 	a.分析数据集
+
+​	[sales_data.txt]()数据集，包含了某某大型商城2022年的销售记录，共7个字段，分别是
+
+```
+1. 销售编号 (sale_id): 这是一个唯一的标识符，用于区分每一条销售记录。它是一个整数。
+2. 产品名称 (product_name): 这个字段表示被销售的产品的名称。
+3. 数量 (quantity): 表示销售的产品数量。这是一个整数。
+4. 销售日期 (sale_date): 销售发生的日期。日期应该覆盖整个2022年。
+5. 单价 (unit_price): 每个产品的销售单价。这是一个浮点数。
+6. 客户编号 (customer_id): 表示购买产品的客户的唯一编号。
+7. 销售渠道 (sales_channel): 表示产品销售的渠道。
+```
+
+<img src="./第7章 Hive数据仓库.assets/image-20231123114552161.png" alt="image-20231123114552161" style="zoom:50%;" />
+
+- 数据集一共有7个字段，根据语义进行变量命名和数据类型的分配得到：
+
+| 字段中文解释 | 销售编号 |   产品名称   |   数量   | 销售日期  |    单价    |  客户编号   |   销售渠道   |
+| :----------: | :------: | :----------: | :------: | :-------: | :--------: | :---------: | :----------: |
+|    字段名    | sale_id  | product_name | quantity | sale_date | unit_price | customer_id | sale_channel |
+| 字段数据类型 |   int    |    string    |   int    |   date    |   float    |   string    |    string    |
+
+- 记录按行分割
+- 字段按"_"分割
+- 数据的存储格式(.txt)是文本格式
+
+​	
+
+​	**分析得到了以上信息之后，我们就可以进入下一步，创建Hive表了。**
+
+​	
+
+##### 	b.用HQL创建sale表
+
+​	进入hive_db
+
+```hive
+use hive_db;
+```
+
+​	创建sale表的HQL语句如下：
+
+```hive
+create table if not exists sale (
+	sale_id int,
+	product_name string,
+	quantity int,
+	sale_date date,
+	unit_price float,
+	customer_id string,
+	sale_channel string
+)
+row format delimited
+fields terminated by "_"
+lines terminated by "\n"
+stored as textfile;
+```
+
+<img src="./第7章 Hive数据仓库.assets/image-20231123164451637.png" alt="image-20231123164451637" style="zoom:67%;" />
+
+
+
+​	在master:50070查看，已经创建sale数据表(文件夹形式)
+
+<img src="./第7章 Hive数据仓库.assets/image-20231123165949661.png" alt="image-20231123165949661" style="zoom:67%;" />
+
+
+
+#### ② 创建外部表
+
+​	创建一个外部Hive表，可以使用`EXTERNAL`关键字。
+
+​	这告诉Hive数据文件在创建表之前就已经存在，并且在删除表时不应该被删除。
+
+​	[创建hive外部表]()的语法格式（简单版）如下：
+
+```hive
+CREATE EXTERNAL TABLE IF NOT EXISTS 表名 (
+    列名1 数据类型,
+    列名2 数据类型,
+    ...
+)
+COMMENT '表的注释'
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '字段分隔符'
+LINES TERMINATED BY '行分隔符'
+STORED AS 文件格式
+LOCATION '表数据的HDFS路径';
+```
+
+- `LOCATION '表数据的HDFS路径'`是指定外部数据文件存储位置的地方。
+
+  当你删除一个外部表时，表的元数据将被删除，[但HDFS上的数据文件会保留]()。
+
+
+
+​	演示创建一个外部表。
+
+```hive
+create external table if not exists sale (
+	goodType varchar(50),
+    volume float,
+    unit float
+) 
+row format delimited 
+fields terminated by ","
+lines terminated by "\n"
+stored as textfile
+location '/user1/hive/warehouse/sale_db.db/sale/'
+;
+```
+
+
+
+
+
+#### ③查看当前数据库的所有表
+
+​	查看[当前数据库的所有表]()的语法如下：
+
+```hive
+show tables；
+```
+
+<img src="./第7章 Hive数据仓库.assets/image-20231123165900509.png" alt="image-20231123165900509" style="zoom:67%;" />
+
+#### ④ 查看指定表的结构信息
+
+​	查看[指定表的结构信息]()，语法格式如下。
+
+```hive
+DESC [FORMATTED] 表名;
+```
+
+​	
+
+​	查看sale表的结构信息：
+
+```hive
+DESC FORMATTED sale;
+```
+
+<img src="./第7章 Hive数据仓库.assets/image-20231123171300097.png" alt="image-20231123171300097" style="zoom:67%;" />
+
+
+
+
+
+#### ⑤ 修改表
+
+​	修改表主要包括[重命名表]()、[修改表的字段]()、[向表添加字段]()。接下来，我们分别来讲解修改表的这几种方式。
+
+
+
+##### (1)重命名表
+
+​	[重命名表]()的语法格式如下。
+
+```hive
+ALTER TABLE 旧表名 RENAME TO 新表名;
+```
+
+​	**(操作略)**
+
+
+
+##### (2)修改表的字段
+
+​	[修改表字段]()的语法格式。
+
+```hive
+-- 修改现有字段类型（注：Hive只允许某些类型的更改）
+ALTER TABLE 表名 CHANGE COLUMN 旧列名 新列名 新数据类型;
+
+-- 替换所有字段（这将删除所有现有字段，仅用新的字段列表）
+ALTER TABLE 表名 REPLACE COLUMNS (新列名1 数据类型1, 新列名2 数据类型2, ...);
+```
+
+- `ALTER TABLE 表名`: 这个命令用于指定你要修改的表。
+- `CHANGE COLUMN`: 这是修改现有列的命令。它可能需要旧列名、新列名和新数据类型。在某些情况下，新列名可以和旧列名一样。
+- `REPLACE COLUMNS`: 这是用新的列定义来完全替换表的现有列。
+- 
+
+##### (3)向表添加字段
+
+```hive
+-- 添加新字段
+ALTER TABLE 表名 ADD COLUMNS (新列名1 数据类型1, 新列名2 数据类型2, ...);
+```
+
+- `ALTER TABLE 表名`: 这个命令用于指定你要修改的表。
+- `ADD COLUMNS`: 这是添加新列到表的命令。
+
+
+
+
+
+#### ⑥ 删除表
+
+```hive
+DROP TABLE IF EXISTS 表名;
+```
+
+- `DROP TABLE`: 这是用于删除表的Hive语句。
+- `IF EXISTS`: 这个选项用于防止在表不存在时执行`DROP TABLE`语句导致错误。
+- `表名`: 要删除的表的名称。
+
+
 
 
 
 ### 7.4.3 数据操作
 
+#### ① 加载文件（重点）
+
+​	[加载文件]()是Hive中常用的[数据导入方式]()，通过加载本地文件系统或HDFS文件系统中文件内的结构化数据，向Hive的指定表批量导入数据。
+
+	##### (1)直接上传到对应HDFS存储路径
+
+​	在7.1.7中我们已经测试过，在Hive中，创建的“数据表”实际上在底层文件系统（如Hadoop的HDFS）中表现为[一个文件夹。]()
+
+<img src="./第7章 Hive数据仓库.assets/image-20231123165949661.png" alt="image-20231123165949661" style="zoom: 67%;" />
+
+
+
+​	上传文件到Hive表所对应的目录后，这些文件中的数据就可以通过Hive查询。
+
+​	Hive将这些文件中的数据按照表定义的结构进行解析，以允许执行SQL-like的查询操作。数据的物理存储和逻辑表结构之间的这种关系称为“[映射]()”。
+
+​	我们可以直接将数据文件(文本格式)直接上传到该[文件夹]()中，这些数据就相当于导入到[sale数据表]()(文件夹)中
+
+​	<img src="./第7章 Hive数据仓库.assets/image-20231123180703937.png" alt="image-20231123180703937" style="zoom:67%;" />
+
+​	我们在Hive中就读取相应的数据表
+
+```hive
+select * from sale limit 5;
+```
+
+<img src="./第7章 Hive数据仓库.assets/image-20231123180752735.png" alt="image-20231123180752735" style="zoom:67%;" />
+
+
+
+​	**(该方法已经在7.1.7中实现过，不用在做一次)**
+
+
+
+##### (2)Load Data加载文件命令
+
+​	向Hive的指定表批量导入数据，也可以通过[Load Data]()命令实现。
+
+
+
+​	首先将[sales_data.txt]()数据集上传到master的[/opt/software](/opt/software)下：
+
+<img src="./第7章 Hive数据仓库.assets/image-20231123181425333.png" alt="image-20231123181425333" style="zoom:67%;" />
+
+
+
+==================================================================================
+
+​	[Load Data]()加载文件的语法格式如下。
+
+```hive
+LOAD DATA [LOCAL] INPATH '文件路径' [OVERWRITE] INTO TABLE 表名
+```
+
+​	
+
+- `LOAD DATA`: 这是告诉Hive你要进行数据加载操作的指令。
+- `LOCAL`: 如果你的数据文件位于本地文件系统上，需要添加这个关键字。如果文件已经在HDFS上，则不需要这个关键字。
+- `INPATH '文件路径'`: 指定要加载的数据文件的路径。如果是本地文件系统，路径通常是绝对路径或相对路径。如果是HDFS，则是HDFS上的路径。
+- `OVERWRITE`: 这个关键字是可选的，用来指示Hive在加载数据前清空目标表或分区。如果不使用`OVERWRITE`，数据将被追加到表或分区中。
+- `INTO TABLE 表名`: 指定要将数据加载到的目标Hive表。
 
 
 
 
 
+​	将[sales_data.txt]()数据集导入[hive_db.sale]()表中
+
+```hive
+load data local inpath '/opt/software/sales_data.txt' into table hive_db.sale;
+```
+
+![image-20231123182031228](./第7章 Hive数据仓库.assets/image-20231123182031228.png)
+
+​	同样的，数据被加载到我们的sale数据表中了。
+
+<img src="./第7章 Hive数据仓库.assets/image-20231123182253773.png" alt="image-20231123182253773" />
+
+
+
+#### ② 插入数据（一般不用）
+
+​	[插入数据]()的语法格式如下（一般不用）。
+
+```hive
+INSERT INTO 表名 [(列1, 列2, ...)]
+VALUES (值1, 值2, ...), (值1, 值2, ...), ...;
+```
+
+
+
+
+
+#### ③ 查询数据（重点）
+
+​	相当于复习一次SQL语句，接下来以小案例的方式复习。
+
+​	[具体的语法我就不一一列出来了，不记得自己回去翻MySQL那本书！！！]()
+
+
+
+| 字段中文解释 | 销售编号 |   产品名称   |   数量   | 销售日期  |    单价    |  客户编号   |   销售渠道   |
+| :----------: | :------: | :----------: | :------: | :-------: | :--------: | :---------: | :----------: |
+|    字段名    | sale_id  | product_name | quantity | sale_date | unit_price | customer_id | sale_channel |
+| 字段数据类型 |   int    |    string    |   int    |   date    |   float    |   string    |    string    |
+
+
+
+**------------------------基本查询-----------------------------**
+
+##### (1)查询全部记录
+
+```hive
+SELECT * FROM sale;
+```
+
+​	([数据量太大了，不要执行这个代码！！！]())
+
+
+
+##### (2)查询前50条记录(id)
+
+```hive
+SELECT 
+	* 
+FROM sale 
+	limit 50;
+```
+
+
+
+##### (3) 查询销售额Top10的记录
+
+```hive
+select 
+	* 
+from sale 
+	order by (quantity * unit_price) desc 
+	limit 10;
+```
+
+​	调用MR进行复杂计算
+
+<img src="./第7章 Hive数据仓库.assets/image-20231123193518937.png" alt="image-20231123193518937" style="zoom:50%;" />
+
+​	对于百万级别的数据，体现出了MR分布式的优势
+
+<img src="./第7章 Hive数据仓库.assets/image-20231123193618682.png" alt="image-20231123193618682" style="zoom:50%;" />
+
+
+
+##### (4) 查询所有销售渠道
+
+```hive
+select 
+	distinct(sale_channel) 
+from sale;
+```
+
+##### (5)查询4872客户的所有购买记录
+
+```hive
+select 
+	* 
+from sale 
+	where customer_id = 4872
+```
+
+
+
+**------------------------聚合查询-----------------------------**
+
+##### (6) 每个产品的总销售数量
+
+```hive
+SELECT 
+	product_name, 
+	SUM(quantity) AS total_quantity 
+FROM sale 
+	GROUP BY product_name;
+	
+```
+
+##### (7) **查询每个客户的最近一次购买记录**
+
+```hive
+SELECT 
+	customer_id, 
+	MAX(sale_date) AS last_purchase_date 
+FROM sales 
+	GROUP BY customer_id;
+```
+
+
+
+##### (8)列出所有产品的最低和最高单价
+
+```hive
+SELECT 
+	YEAR(sale_date) AS year, 
+	MONTH(sale_date) AS month, 
+	SUM(quantity) AS total_quantity 
+FROM sale 
+	GROUP BY YEAR(sale_date), MONTH(sale_date);
+```
+
+
+
+##### (9) 按每个客户的总销售额降序排列客户列表
+
+```hive
+SELECT 
+	customer_id, 
+	SUM(quantity * unit_price) AS total_spent 
+FROM sale 
+	GROUP BY customer_id 
+	ORDER BY total_spent DESC;
+```
+
+
+
+##### (10) 按2022年的每个月份统计销售额
+
+```hive
+SELECT 
+	YEAR(sale_date) as year, 
+	MONTH(sale_date) as month, 
+	SUM(quantity * unit_price) AS monthly_sales 
+FROM sale 
+	WHERE YEAR(sale_date) = 2022 
+GROUP BY YEAR(sale_date), MONTH(sale_date);
+```
+
+
+
+**------------------------高级分析，难度非常高-----------------------------**
+
+##### (11) 查询每个销售渠道的最佳销售日（销售额最高的日子）
+
+```hive
+SELECT sale_channel, sale_date, daily_sales
+FROM (
+  SELECT sale_channel, 
+         sale_date, 
+         SUM(quantity * unit_price) AS daily_sales,
+      	ROW_NUMBER() OVER (PARTITION BY sale_channel ORDER BY SUM(quantity * unit_price) DESC) AS rn
+  FROM sale
+  GROUP BY sale_channel, sale_date
+	) AS t
+WHERE rn = 1;
+```
+
+<img src="./第7章 Hive数据仓库.assets/image-20231124125635309.png" alt="image-20231124125635309" style="zoom:50%;" />
+
+
+
+在这个查询中：
+
+- 我们首先对`sales`表进行分组，根据`sale_channel`和`sale_date`分组并计算每个渠道每天的销售额（`daily_sales`）。
+- 使用`ROW_NUMBER()`窗口函数为每个`sale_channel`内的记录按`daily_sales`降序排名。
+- 最外层的查询过滤出每个渠道排名为1的记录，即每个销售渠道销售额最高的日子。
+
+
+
+​	`ROW_NUMBER()` 是 Hive 中的一个窗口函数，用于为每个分区内的行分配一个唯一的顺序号。
+
+​	这个序号是基于窗口分区内的排序顺序来分配的。
+
+​	在使用 `ROW_NUMBER()` 函数时，通常会在 `OVER` 子句中定义分区（`PARTITION BY`）和排序（`ORDER BY`）规则。
+
+```hive
+SELECT 
+  column1, 
+  column2, 
+  ...,
+  ROW_NUMBER() OVER (PARTITION BY column1 ORDER BY column2) AS row_num
+FROM 
+  table_name;
+```
+
+​	其中顺序最高的（比如本例中最高销售额）将被分配 `row_num` 为 1。
+
+
+
+##### (12) 分析每个客户的月度购买趋势
+
+```hive
+SELECT 
+  customer_id,
+  YEAR(sale_date) AS year,
+  MONTH(sale_date) AS month,
+  SUM(quantity * unit_price) AS total_spent
+FROM 
+  sale
+GROUP BY 
+  customer_id, YEAR(sale_date), MONTH(sale_date)
+ORDER BY 
+  customer_id, year, month;
+```
+
+
+
+##### (13) 对每个销售渠道，按月计算销售额增长率
+
+```hive
+SELECT 
+  sale_channel, 
+  year, 
+  month, 
+  monthly_sales, 
+  ROUND(((monthly_sales - prev_month_sales) / prev_month_sales) * 100, 2) AS growth_rate
+FROM (
+  SELECT 
+    sale_channel, 
+    YEAR(sale_date) AS year, 
+    MONTH(sale_date) AS month, 
+    SUM(quantity * unit_price) AS monthly_sales,
+    LAG(SUM(quantity * unit_price), 1, 0) OVER (PARTITION BY sale_channel ORDER BY YEAR(sale_date), MONTH(sale_date)) AS prev_month_sales
+  FROM 
+    sale
+  GROUP BY 
+    sale_channel, YEAR(sale_date), MONTH(sale_date)
+) t;
+```
+
+<img src="./第7章 Hive数据仓库.assets/image-20231124130532006.png" alt="image-20231124130532006" style="zoom: 33%;" />
+
+
+
+这个查询的解释：
+
+- **内层查询**：计算每个销售渠道每月的销售总额（`monthly_sales`）。`GROUP BY` 语句用于分组，`YEAR(sale_date)` 和 `MONTH(sale_date)` 用于提取销售记录的年份和月份。
+
+  
+
+- **`LAG` 函数**：`LAG(SUM(quantity * unit_price), 1, 0)` 用于获取每个渠道前一个月的销售额。这里的 `1` 表示前移一个月，`0` 是默认值，用于处理没有前一个月数据的情况。
+
+  
+
+- **外层查询**：计算增长率。增长率计算公式为 `(当前月销售额 - 前一个月销售额) / 前一个月销售额 * 100`。`ROUND` 函数用于格式化输出，保留两位小数。
+
+
+
+其中，`LAG` 是 Hive 中的一个窗口函数，用于访问当前行之前的行中的数据。它非常有用于比较序列数据中连续行的值，例如，比较时间序列数据中连续时间点的值。
+
+​	`LAG` 函数可以让您在当前行查看“向上”或“向后”一定数量的行的数据。
+
+​	`LAG` 函数的基本语法是：
+
+```hive
+LAG(column, offset, default_value) OVER (PARTITION BY partition_column ORDER BY order_column)
+```
+
+- `column`：您想从之前的行中获取的列。
+- `offset`：您想“向上”查看多少行。例如，`1` 会返回当前行之前的一行的数据，`2` 会返回当前行之前的第二行的数据，依此类推。
+- `default_value`：如果“向上”查看的行不存在（比如当前行是分区的第一行），那么返回的默认值。这是一个可选参数。
+- `OVER (PARTITION BY partition_column ORDER BY order_column)`：定义窗口的子句。`PARTITION BY` 定义了窗口函数如何分区数据。`ORDER BY` 定义了每个分区内的排序顺序。
+
+
+
+
+
+##### (14) 对于每个产品，找出销售数量在所有客户中的中位数
+
+```hive
+SELECT 
+	product_name, 
+	PERCENTILE_APPROX(quantity, 0.5) AS median_quantity 
+FROM sale 
+	GROUP BY product_name;
+```
+
+<img src="./第7章 Hive数据仓库.assets/image-20231124131607293.png" alt="image-20231124131607293" style="zoom: 33%;" />
+
+​	`PERCENTILE_APPROX` 是 Hive 中的一个聚合函数，用于估算大型数据集的百分位数。
+
+​	百分位数是一个度量，表明在一组数据中有多大比例的数值位于某个特定值以下。
+
+​	例如，如果某个值是销售数据量的第90百分位数，那么90%的销售数据量将低于这个值。中位数是50％，也就是0.5。
+
+
+
+
+
+
+
+#### ④ 自行完成以下查询练习
+
+**练习1:查询客户编号为[4872]()并且销售渠道为[代理]()的销售记录**
+
+```hive
+
+```
+
+**练习2:查询所有[售出数量超过100]()的销售记录**
+
+```hive
+
+```
+
+**练习3:查询在[2022-01-25至2022-06-15]()范围内的销售记录**
+
+```
+
+```
+
+**练习4:查询[销售数量最少]()的5个产品**
+
+```hive
+
+```
+
+**练习5:计算每个[销售渠道的平均单价]()**
+
+```hive
+
+```
+
+**练习6:统计[每个月的平均购买总额]()**
+
+```hive
+
+```
+
+**练习7:统计[每个客户每个月的平均购买总额]()**
+
+```hive
+
+```
 
 
 
@@ -1684,7 +2513,7 @@ CREATE DATABASE [IF NOT EXISTS] database_name
 
 
 
-### 7.5.1 网络小说数据分析
+### 7.5.1 某网络小说数据分析
 
 
 
@@ -1704,7 +2533,23 @@ CREATE DATABASE [IF NOT EXISTS] database_name
 
 
 
-## 7.6 Hive的优化和高级特性
+## 7.6 Hive的优化和高级特性(待续)
+
+### 7.6.1 分区
+
+#### ① 创建分区表
+
+#### ② 向分区导入数据
+
+### 7.6.2 分桶
+
+#### ① 创建分桶表
+
+#### ② 分桶对连接查询的优化
+
+
+
+### 7.6.3 Hive优化
 
 
 
@@ -1717,4 +2562,12 @@ CREATE DATABASE [IF NOT EXISTS] database_name
 ### 7.6.1 建表
 
 ### 7.6.2 查询
+
+
+
+
+
+
+
+
 
