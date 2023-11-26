@@ -2529,9 +2529,141 @@ FROM sale
 
 ### 7.5.3 工业机器数据分析
 
+**一、案例背景**
 
+   **你是一家大型制造公司的数据分析师。该公司拥有数百台机器，这些机器在生产过程中生成大量的运行数据。这些数据包括每台机器的运行时间、停机时间、故障次数、产出数量等。数据以每小时为单位收集，并存储在Hadoop文件系统中。**
 
+**二、数据集**
 
+工业数据样本如图所示：
+
+<img src="第7章 Hive数据仓库.assets/image-20231126161236869.png" alt="image-20231126161236869" style="zoom:80%;" />
+
+其中字段说明如下：
+
+| 字段名       | 说明                           |
+| ------------ | :----------------------------- |
+| machine_id   | 机器的唯一标识符               |
+| timestamp    | 数据记录的时间戳               |
+| running_time | 机器的运行时间（小时）         |
+| downtime     | 机器的停机时间（小时）         |
+| failures     | 在该时间段内机器发生的故障次数 |
+| output       | 产出数量                       |
+
+**三、Hive查询任务**
+
+1. 哪台机器的平均停机时间最长？
+2. 哪台机器的故障率最高？
+3. 总产出量最高的前三台机器是哪些？
+4. 哪些机器在过去一个月内故障次数最多？
+5. 过去一年内，哪个季度的平均产出量最高？
+
+**四、实验步骤**
+
+1. 首先将industrial_machine_data.csv数据上传到master节点/opt/software目录下，如下图所示
+
+<img src="第7章 Hive数据仓库.assets/image-20231126163234663.png" alt="image-20231126163234663" style="zoom:80%;" />
+
+2. 在maseter节点启动hive
+
+<img src="第7章 Hive数据仓库.assets/image-20231126163621547.png" alt="image-20231126163621547" style="zoom:80%;" />
+
+3. 在hive默认数据库中defalut创建一张**machine**表，建表语句如下：
+
+```sql
+CREATE TABLE IF NOT EXISTS machine (
+    machine_id STRING,
+    time STRING,
+    running_time DOUBLE,
+    downtime DOUBLE,
+    failures INT,
+    output DOUBLE
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE;
+```
+
+<img src="第7章 Hive数据仓库.assets/image-20231126170228940.png" alt="image-20231126170228940" style="zoom:80%;" />
+
+4. 加载数据industrial_machine_data.csv到表machine里面
+
+```sql
+load data local inpath " /opt/software/industrial_machine_data.csv" into table machine;
+```
+
+<img src="第7章 Hive数据仓库.assets/image-20231126165342984.png" alt="image-20231126165342984" style="zoom:80%;" />
+
+5. 查看表machine数据
+
+```sql
+select * from machine
+```
+
+<img src="第7章 Hive数据仓库.assets/image-20231126170438220.png" alt="image-20231126170438220" style="zoom:80%;" />
+
+6. 完成案例任务
+
+（1）哪台机器的平均停机时间最长？
+
+```sql
+SELECT machine_id, AVG(downtime) AS average_downtime
+FROM machine
+GROUP BY machine_id
+ORDER BY average_downtime DESC
+LIMIT 1;
+```
+
+<img src="第7章 Hive数据仓库.assets/image-20231126171153428.png" alt="image-20231126171153428" style="zoom:80%;" />
+
+(2)哪台机器的故障率最高？
+
+```sql
+SELECT machine_id, AVG(failures / running_time) AS average_failure_rate
+FROM machine
+GROUP BY machine_id
+ORDER BY average_failure_rate DESC
+LIMIT 1;
+```
+
+<img src="第7章 Hive数据仓库.assets/image-20231126171932518.png" alt="image-20231126171932518" style="zoom:80%;" />
+
+(3)总产出量最高的前三台机器是哪些？
+
+```sql
+SELECT machine_id, SUM(output) AS total_output
+FROM machine
+GROUP BY machine_id
+ORDER BY total_output DESC
+LIMIT 3;
+```
+
+<img src="第7章 Hive数据仓库.assets/image-20231126172327159.png" alt="image-20231126172327159" style="zoom:80%;" />
+
+(4)找出过去一个月内故障次数最多的机器？
+
+```sql
+-- 假设当前日期是2023-01-01
+SELECT machine_id, SUM(failures) AS total_failures
+FROM machine
+WHERE time >= '2022-12-01' AND time < '2023-01-01'
+GROUP BY machine_id
+ORDER BY total_failures DESC
+LIMIT 1;
+```
+
+<img src="第7章 Hive数据仓库.assets/image-20231126172633273.png" alt="image-20231126172633273" style="zoom:80%;" />
+
+(5)过去一年内，哪个季度的平均产出量最高？
+
+```sql
+SELECT CONCAT(YEAR(time), 'Q', QUARTER(time)) AS quarter, AVG(output) AS average_output
+FROM machine
+GROUP BY CONCAT(YEAR(time), 'Q', QUARTER(time))
+ORDER BY quarter;
+```
+
+<img src="第7章 Hive数据仓库.assets/image-20231126173150038.png" alt="image-20231126173150038" style="zoom:80%;" />
 
 ## 7.6 Hive的优化和高级特性(待续)
 
