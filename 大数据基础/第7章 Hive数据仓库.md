@@ -1863,7 +1863,9 @@ STORED AS 文件格式;
 
 ​	如何创建一个表，是我们Hive学习的关键，所以本小节会用大量笔墨来介绍如何[根据我们的数据集]()创建对应的表结构。
 
-	##### 	a.分析数据集
+
+
+**分析数据集**
 
 ​	[sales_data.txt]()数据集，包含了某某大型商城2022年的销售记录，共7个字段，分别是
 
@@ -2509,31 +2511,15 @@ FROM sale
 
 
 
-## 7.5 Hive综合实训(待续)
+## 7.5 Hive综合实训
 
+### 7.5.1 工业机器数据分析
 
-
-### 7.5.1 某网络小说数据分析
-
-
-
-### 7.5.2 某网络商城点击情况分析
-
-<img src="./第7章 Hive数据仓库.assets/2416314-20220327180929973-677849174.png" alt="img" />
-
-
-
-
-
-
-
-### 7.5.3 工业机器数据分析
-
-**一、案例背景**
+#### **一、案例背景**
 
    **你是一家大型制造公司的数据分析师。该公司拥有数百台机器，这些机器在生产过程中生成大量的运行数据。这些数据包括每台机器的运行时间、停机时间、故障次数、产出数量等。数据以每小时为单位收集，并存储在Hadoop文件系统中。**
 
-**二、数据集**
+#### **二、数据集**
 
 工业数据样本如图所示：
 
@@ -2550,7 +2536,7 @@ FROM sale
 | failures     | 在该时间段内机器发生的故障次数 |
 | output       | 产出数量                       |
 
-**三、Hive查询任务**
+#### **三、Hive查询任务**
 
 1. 哪台机器的平均停机时间最长？
 2. 哪台机器的故障率最高？
@@ -2558,7 +2544,7 @@ FROM sale
 4. 哪些机器在过去一个月内故障次数最多？
 5. 过去一年内，哪个季度的平均产出量最高？
 
-**四、实验步骤**
+#### **四、实验步骤**
 
 1. 首先将industrial_machine_data.csv数据上传到master节点/opt/software目录下，如下图所示
 
@@ -2664,6 +2650,671 @@ ORDER BY quarter;
 ```
 
 <img src="第7章 Hive数据仓库.assets/image-20231126173150038.png" alt="image-20231126173150038" style="zoom:80%;" />
+
+
+
+### 7.5.2 某电商网站用户行为分析
+
+#### 一、案例背景
+
+​	你是一家电子商务网站的数据分析师。该网站每天有成千上万的用户访问和交易，这些活动产生了海量的用户行为数据。这些数据涵盖了用户的浏览路径、搜索查询、点击行为、购物车操作、购买历史等。
+
+​	所有这些数据都以实时流的形式被捕捉，并存储在一个大型的数据仓库中。
+
+​	你的任务是通过这些数据来分析用户行为模式，提供个性化的购物体验，优化用户的转化率，以及预测市场趋势。
+
+
+
+#### 二、数据集
+
+​	本实训的数据是采集电商网站的用户行为数据，主要包含用户的4种行为：[搜索]()、[点击]()、[下单]()和[支付]()。
+
+<img src="./第7章 Hive数据仓库.assets/image-20231127091821316.png" alt="image-20231127091821316" />
+
+- 数据采用"_"分割字段
+- 每一行表示用户的一个行为，所以每一行只能是[四种行为中的一种]()
+- 如果点击的品类id和产品id是[-1表示这次不是点击]()
+- 针对下单行为，一次可以下单多个产品，所以品类id和产品id都是多个，id之间使用[逗号(,)]()分割。
+- 如果本次不是下单行为，则他们相关数据用null来表示。
+- 支付行为[和下单行为格式类似]()
+
+
+
+数据详细字段说明
+
+| **编号** |      **字段名称**      | **字段类型** |          **字段含义**          |
+| :------: | :--------------------: | :----------: | :----------------------------: |
+|    1     |       event_date       |    String    |       用户点击行为的日期       |
+|    2     |        user_id         |     Long     |            用户的ID            |
+|    3     |       session_id       |    String    |          Session的ID           |
+|    4     |        page_id         |     Long     |          某个页面的ID          |
+|    5     |      action_time       |    String    |          动作的时间点          |
+|    6     |     search_keyword     |    String    |        用户搜索的关键词        |
+|    7     | [click_category_id]()  |     Long     |   [点击某一个商品品类的ID]()   |
+|    8     |    click_product_id    |     Long     |         某一个商品的ID         |
+|    9     | [order_category_ids]() |    Array     | [一次订单中所有品类的ID集合]() |
+|    10    |   order_product_ids    |    Array     |   一次订单中所有商品的ID集合   |
+|    11    |  [pay_category_ids]()  |    Array     | [一次支付中所有品类的ID集合]() |
+|    12    |    pay_product_ids     |    Array     |   一次支付中所有商品的ID集合   |
+|    13    |        city_id         |     Long     |            城市  id            |
+
+
+
+
+
+#### 三、Hive查询任务
+
+<img src="./第7章 Hive数据仓库.assets/image-20231127093727154.png" alt="image-20231127093727154" style="zoom: 80%;" />
+
+​	需求说明：品类是指产品的分类，大型电商网站品类分多级，咱们的项目中品类只有一级，不同的公司可能对热门的定义不一样。
+
+​	我们按照[每个品类]()的点击、下单、支付的量（次数）来统计热门品类。
+
+```
+		鞋         点击数 下单数 支付数
+
+		衣服       点击数 下单数 支付数
+
+		电脑       点击数 下单数 支付数
+```
+
+​	例如，[综合排名 = 点击数*20% + 下单数*30% + 支付数*50%]()
+
+
+
+​	本项目需求优化为：[先按照点击数排名，靠前的就排名高；如果点击数相同，再比较下单数；下单数再相同，就比较支付数。]()
+
+
+
+#### 四、实验步骤
+
+1. 首先将[user_visit_action.txt]()数据上传到master节点[/opt/software](/opt/software)目录下，如下图所示
+
+   <img src="./第7章 Hive数据仓库.assets/image-20231127094029963.png" />
+
+2. 在maseter节点启动hive
+
+   ​	执行命令
+
+   ```hive
+   hive
+   ```
+
+   <img src="./第7章 Hive数据仓库.assets/image-20231127094146204.png" alt="image-20231127094146204" />
+
+3. 创建一个user_action_db数据库，并进入该数据库
+
+   ​	创建user_action_db：
+
+   ```hive
+   create database if not exists user_action_db;
+   ```
+
+   <img src="./第7章 Hive数据仓库.assets/image-20231127094456895.png" alt="image-20231127094456895" />
+
+   ​	进入user_action_db：
+
+   ```hive
+   use user_action_db;
+   ```
+
+   <img src="./第7章 Hive数据仓库.assets/image-20231127094618185.png" alt="image-20231127094618185" />
+
+4. 在用户行为数据库user_action_db中创建一张**user_behavior**表，建表语句如下：
+
+   ```hive
+   CREATE TABLE user_behavior (
+       event_date DATE,
+       user_id BigInt,
+       session_id STRING,
+       page_id BigInt,
+       action_time TIMESTAMP,
+       search_keyword STRING,
+       click_category_id BigInt,
+       click_product_id BigInt,
+       order_category_ids ARRAY<String>,
+       order_product_ids ARRAY<String>,
+       pay_category_ids ARRAY<String>,
+       pay_product_ids ARRAY<String>,
+       city_id BigInt
+   )
+   ROW FORMAT DELIMITED
+   FIELDS TERMINATED BY '_'
+   COLLECTION ITEMS TERMINATED BY ','
+   STORED AS TEXTFILE;
+   ```
+
+   <img src="./第7章 Hive数据仓库.assets/image-20231127094927093.png" alt="image-20231127094927093" style="zoom:67%;" />
+
+   [PS:用ARRAY\<String>的目的是方便转换空值]()
+
+   
+
+5. 加载数据user_visit_action.txt到表user_behavior里面
+
+   ```hive
+   load data local inpath "/opt/software/user_visit_action.txt" into table user_behavior;
+   ```
+
+   <img src="./第7章 Hive数据仓库.assets/image-20231127095311691.png" alt="image-20231127095311691" />
+
+6. 查看表user_behavior数据
+
+   ```hive
+   select * from user_behavior limit 50;
+   ```
+
+   <img src="./第7章 Hive数据仓库.assets/image-20231127095503265.png" alt="image-20231127095503265" />
+
+7. [将null字符串数据转换成Hive的NULL类型（重难点）]()
+
+   ```hive
+   INSERT OVERWRITE TABLE user_behavior
+   SELECT 
+       event_date,
+       user_id,
+       session_id,
+       page_id,
+       action_time,
+       CASE WHEN search_keyword = 'null' THEN NULL ELSE search_keyword END,
+       CASE WHEN click_category_id = -1 THEN NULL ELSE click_category_id END,
+       CASE WHEN click_product_id = -1 THEN NULL ELSE click_product_id END,
+       CASE WHEN order_category_ids[0] = 'null' THEN ARRAY() ELSE order_category_ids END,
+       CASE WHEN order_product_ids[0] = 'null' THEN ARRAY() ELSE order_product_ids END,
+       CASE WHEN pay_category_ids[0] = 'null' THEN ARRAY() ELSE pay_category_ids END,
+       CASE WHEN pay_product_ids[0] = 'null' THEN ARRAY() ELSE pay_product_ids END,
+       city_id
+   FROM user_behavior;
+   ```
+
+   <img src="./第7章 Hive数据仓库.assets/image-20231127100535471.png" alt="image-20231127100535471" style="zoom:67%;" />
+
+   再次查询user_behavior表：
+
+   ```hive
+   select * from user_behavior limit 50;
+   ```
+
+   <img src="./第7章 Hive数据仓库.assets/image-20231127100622606.png" alt="image-20231127100622606" style="zoom:67%;" />
+
+8. 查询热门品类
+
+   根据以下规则对[品类]()进行排名
+
+   ```
+   品类是指产品的分类，大型电商网站品类分多级，咱们的项目中品类只有一级，不同的公司可能对热门的定义不一样。
+   
+   我们按照每个品类的点击、下单、支付的量（次数）来统计热门品类。
+   
+   综合排名 = 点击数*20% + 下单数*30% + 支付数*50%
+   
+   本项目需求优化为：先按照点击数排名，靠前的就排名高；如果点击数相同，再比较下单数；下单数再相同，就比较支付数。
+   ```
+
+   <img src="./第7章 Hive数据仓库.assets/image-20231127091821316.png" alt="image-20231127091821316" style="zoom:67%;" />
+
+   
+
+   (1)使用 Hive 的 `LATERAL VIEW` 和 `explode` 以及`统计函数`。计算出[点击]()、[下单]()、[支付]()的数量，并分别存入三个临时表。
+
+   ​	[PS：其实这里可以直接用子查询完成，但代码复杂，不方便教学，故使用临时表方式]()
+   
+   
+   
+   ​	创建品类点击统计临时表
+   
+   ```hive
+   CREATE TEMPORARY TABLE temp_click_count AS
+   SELECT 
+       click_category_id,
+       count(*) as click_count
+   FROM 
+       user_behavior
+   GROUP BY
+   	click_category_id;
+   ```
+   
+   ​	创建品类下单统计临时表
+   
+   ```hive
+   CREATE TEMPORARY TABLE temp_order_count AS
+   SELECT 
+       order_category_id,
+       count(*) as order_count
+   FROM 
+       user_behavior
+       LATERAL VIEW explode(order_category_ids) t AS order_category_id
+   GROUP BY
+   	order_category_id;
+   ```
+   
+   ​	创建品类支付统计临时表
+   
+   ```hive
+   CREATE TEMPORARY TABLE temp_pay_count AS
+   SELECT 
+       pay_category_id,
+       count(*) as pay_count
+   FROM 
+       user_behavior
+       LATERAL VIEW explode(pay_category_ids) t AS pay_category_id
+   GROUP BY
+   	pay_category_id;
+   ```
+   
+   
+   
+   (2) 连接三个统计表，并根据排名规则统计出热门品类
+   
+   ```hive
+   SELECT 
+   	click_category_id
+       (click_count * 0.2 + order_count * 0.3 + pay_count * 0.5) as rank,
+       click_count,
+       order_count,
+       pay_count    
+   FROM 
+       temp_click_count
+   INNER JOIN 
+   	temp_order_count
+   	ON
+   		temp_click_count.click_category_id = temp_order_count.order_category_id
+   INNER JOIN
+   	temp_pay_count
+   	ON
+   		temp_click_count.click_category_id = temp_pay_count.pay_category_id
+   ORDER BY
+   	rank DESC
+   	;
+   ```
+   
+   <img src="./第7章 Hive数据仓库.assets/image-20231127112822542.png" alt="image-20231127112822542" style="zoom:50%;" />
+   
+   最终热门品类的排名如下：
+   
+   <img src="./第7章 Hive数据仓库.assets/image-20231127112907185.png" alt="image-20231127112907185" style="zoom:67%;" />
+   
+   我们可以从查询结果得知，[7号品类的商品是最热门的]()。
+
+
+
+### 7.5.3 某视频网站数据分析
+
+#### 一、案例背景
+
+​	你是一家流行视频网站的数据分析师。该平台每天都吸引着成千上万的观众和内容创作者，他们在这里上传、观看、分享和评论视频。
+
+​	每个视频都有一个唯一的标识符（videoId），涵盖多种类别，从而吸引了不同兴趣的观众群体。这些视频的关键信息包括视频长度（length）、观看次数（views）、评分（rate）、流量（ratings）、评论数（comments）以及相关视频链接（relatedId）。此外，还记录了每个视频的上传者（uploader），他们上传的视频数量（videos）以及他们的社交连接（friends）。
+
+​	所有这些数据为你提供了丰富的资源，用以分析观众行为、内容受欢迎程度、社交互动以及趋势动态。你的任务是通过这些数据洞察来优化用户体验，提升内容质量，增强用户参与度，并助力平台的整体发展。
+
+​	这些数据每小时更新一次，并被存储在 Hadoop 分布式文件系统中，以便进行高效的大数据分析和实时决策支持。
+
+#### 二、数据集
+
+​	该任务有两个数据集，1个是视频表，1个是用户表。
+
+<img src="./第7章 Hive数据仓库.assets/image-20231127114350929.png" alt="image-20231127114350929" style="zoom:80%;" />
+
+(1) 视频表
+
+​	视频表一共有5个数据文件
+
+<img src="./第7章 Hive数据仓库.assets/image-20231127114413397.png" alt="image-20231127114413397" style="zoom:67%;" />
+
+​	数据字段如下：
+
+| 字段      |             备注             |        详细描述        |
+| --------- | :--------------------------: | :--------------------: |
+| videoId   |     视频唯一id（String）     |       11位字符串       |
+| uploader  |     视频上传者（String）     | 上传视频的用户名String |
+| age       |       视频年龄（int）        |  视频在平台上的整数天  |
+| category  |  视频类别（Array\<String>）  | 上传视频指定的视频分类 |
+| length    |       视频长度（Int）        | 整形数字标识的视频长度 |
+| views     |       观看次数（Int）        |    视频被浏览的次数    |
+| rate      |      视频评分（Double）      |        满分5分         |
+| Ratings   |         流量（Int）          |  视频的流量，整型数字  |
+| conments  |        评论数（Int）         |  一个视频的整数评论数  |
+| relatedId | 相关视频id（Array\<String>） | 相关视频的id，最多20个 |
+
+
+
+(2)用户表
+
+![image-20231127114526526](./第7章 Hive数据仓库.assets/image-20231127114526526.png)
+
+​	数据字段如下：
+
+| 字段     |     备注     | 字段类型 |
+| -------- | :----------: | :------: |
+| uploader | 上传者用户名 |  string  |
+| videos   |  上传视频数  |   int    |
+| friends  |   朋友数量   |   int    |
+
+
+
+
+
+#### 三、Hive查询任务
+
+统计某影音视频网站的常规指标，各种TopN指标：
+
+1. 统计视频观看数Top10
+
+2. 统计视频类别热度Top10（类别热度：类别下的总视频数）
+
+3. 统计出视频观看数最高的20个视频的所属类别以及类别包含Top20视频的个数
+
+4. 统计视频观看数Top50所关联视频的所属类别Rank（每个类别下有多少视频）
+
+5. 统计每个类别中的视频热度Top10，以Music为例（视频热度：视频观看数）
+
+6. 统计每个类别视频观看数Top10
+
+   
+
+#### 四、实验步骤
+
+1. 首先将[guliVideo文件夹]()上传到master节点[/opt/software](/opt/software)目录下，如下图所示
+
+   ![image-20231127114953130](./第7章 Hive数据仓库.assets/image-20231127114953130.png)
+
+2. 在maseter节点启动hive
+
+   ```shell
+   hive
+   ```
+
+   <img src="./第7章 Hive数据仓库.assets/image-20231127115035118.png" alt="image-20231127115035118" style="zoom:50%;" />
+
+3. 创建video_db数据库，并进入该数据库
+
+   ```hive
+   create database if not exists video_db;
+   ```
+
+   <img src="./第7章 Hive数据仓库.assets/image-20231127115204246.png" alt="image-20231127115204246" />
+
+   ```hive
+   use video_db;
+   ```
+
+   <img src="./第7章 Hive数据仓库.assets/image-20231127115235768.png" alt="image-20231127115235768" />
+
+4. 在video_db数据库中创建两个Hive数据表，分别为：
+
+   ​	创建gulivideo表
+
+   ```hive
+   create external table gulivideo(
+       videoId string, 
+       uploader string, 
+       age int, 
+       category array<string>, 
+       length int, 
+       views int, 
+       rate float, 
+       ratings int, 
+       comments int,
+       relatedId array<string>
+   )
+   row format delimited fields terminated by "\t"
+   collection items terminated by "&"
+   stored as textfile
+   location '/gulivideo/video';
+   ```
+
+   <img src="./第7章 Hive数据仓库.assets/image-20231127115734004.png" alt="image-20231127115734004" style="zoom:50%;" />
+
+   ​	创建gulivideo_user表
+
+   ```hive
+   create external table gulivideo_user(
+       uploader string,
+       videos int,
+       friends int
+   )
+   row format delimited 
+   fields terminated by "\t" 
+   stored as textfile
+   location '/gulivideo/user';
+   ```
+
+   <img src="./第7章 Hive数据仓库.assets/image-20231127115816364.png" alt="image-20231127115816364" style="zoom:67%;" />
+
+   ​	查看[master:50070]()，发现在HDFS上创建了[/gulivideo/video](/gulivideo/video)和[/gulivideo/user](/gulivideo/user)指定数据表目录
+
+   ​	<img src="./第7章 Hive数据仓库.assets/image-20231127115900095.png" alt="image-20231127115900095" />
+
+5. 加载数据到数据文件夹/guliVideo里面（通过HDFS上传方式）
+
+   ```shell
+   hadoop fs -put /opt/software/guliVideo/user/* /gulivideo/user/
+   ```
+
+   <img src="./第7章 Hive数据仓库.assets/image-20231127120157209.png" alt="image-20231127120157209" />
+
+   ```shell
+   hadoop fs -put /opt/software/guliVideo/video/* /gulivideo/video/
+   ```
+
+   <img src="./第7章 Hive数据仓库.assets/image-20231127120218674.png" alt="image-20231127120218674" />
+
+   [PS：请有能力的同学改成通过Flume采集数据集到HDFS指定Hive路径下。]()
+
+6. 查看表数据
+
+   ​	查看gulivideo表数据
+
+   ```hive
+   select * from gulivideo limit 10;
+   ```
+
+   <img src="./第7章 Hive数据仓库.assets/image-20231127120800954.png" alt="image-20231127120800954" />
+
+   ​	查看gulivideo_user表数据
+
+   ```hive
+   select * from gulivideo_user limit 10;
+   ```
+
+   <img src="./第7章 Hive数据仓库.assets/image-20231127120822164.png" alt="image-20231127120822164" style="zoom:67%;" />
+
+7. 统计视频观看数Top10
+
+   思路：使用order by按照views字段做一个全局排序即可，同时我们设置只显示前10条。
+
+   ```hive
+   select
+       videoId,
+       `views`
+   from 
+   	gulivideo
+   order by 
+   	`views` desc 
+   limit 10;
+   ```
+
+   
+
+8. 统计视频类别热度Top10(类别热度：类别下的总视频数)
+
+   ① 即统计每个类别有多少个视频，显示出包含视频最多的前10个类别。
+
+   ② 我们需要按照类别group by聚合，然后count组内的videoId个数即可。
+
+   ③ 因为当前表结构为：一个视频对应一个或多个类别。所以如果要group by类别，需要先将类别进行列转行(展开)，然后再进行count即可。
+
+   ④ 最后按照热度排序，显示前10条。
+
+   ```hive
+   select
+       tmp01.category_col,
+       count(tmp01.videoId) num
+   from (
+        select
+            videoId,
+            category_col
+        from gulivideo
+                 lateral view
+                     explode(category) t as category_col
+   ) tmp01
+   group by tmp01.category_col
+   order by num desc
+   limit 10;
+   ```
+
+9. 统计出视频观看数最高的20个视频的所属类别以及类别包含Top20视频
+
+   ① 先找到观看数最高的20个视频所属条目的所有信息（主要是类别），降序排列
+
+   ② 把这20条信息中的category分裂出来(列转行)，行成新的字段category_name
+
+   ③ 在第二步的结果下，按照炸开的视频类别category_name分组，然后统计组内的个数category_count
+
+   ```hive
+   select
+       table02.categroy_name,
+       count(table02.videoId) num
+   from (
+        select
+            videoId,
+            categroy_name
+        from (
+                 select
+                     videoId,
+                     `views`,
+                     category
+                 from gulivideo
+                 order by `views` desc
+                 limit 20
+             ) table01
+                 lateral view
+                     explode(category) tmp as categroy_name
+   ) table02
+   group by table02.categroy_nam;
+   
+   ```
+
+   
+
+10. 统计视频观看数Top50所关联视频的所属类别排序
+
+    ① 先找到观看数前50的视频信息（主要是求出关联视频）
+
+    ② 炸开第一步求出的关联视频array，形成一个新字段new_relatedid
+
+    ③ 用new_relatedid和gulivideo表进行join，求出new_relatedid的类别
+
+    ④ 炸开第三步结果中的category，形成新字段category_name
+
+    ⑤ 在第四步的结果上，按照category_name 分组，然后求出每组的个数category_count
+
+    ⑥ 在第五步的基础之上，对category_count进行排序，利用开窗函数
+
+    ```hive
+    select 
+        t5.category_name,
+        t5.num,
+        rank() over(order by t5.num desc ) rk
+    from (
+         select
+             t4.category_name,
+             count(t4.realte_id) num
+         from (
+                  select
+                      t3.realte_id,
+                      category_name
+                  from (
+                           select
+                               t2.realte_id,
+                               g.category
+                           from (
+                                    select
+                                        realte_id
+                                    from (
+                                             select
+                                                 videoId,
+                                                 relatedId,
+                                                 `views`
+                                             from gulivideo
+                                             order by `views` desc
+                                             limit 50
+                                         ) t1
+                                             lateral view
+                                                 explode(t1.relatedId) tmp as realte_id
+                                ) t2 join gulivideo g on t2.realte_id = g.videoId
+                       ) t3
+                           lateral view
+                               explode(t3.category) tmp as category_name
+              ) t4
+         group by t4.category_name        
+    ) t5 ;
+    
+    ```
+
+    
+
+11. 统计每个类别中的视频热度Top10，以Music为例
+
+    ① 要想统计Music类别中的视频热度Top10，需要先找到Music类别，那么就需要将category展开行成新的字段cateogry_name。
+
+    ② 然后通过category_name 过滤“Music”分类的所有视频信息，按照视频观看数倒序排序，取前10
+
+    ③ 统计对应类别（Music）中的视频热度。
+
+    ```hive
+    select
+        videoId,
+        `views` hot
+    from (
+         select
+             videoId,
+             category_name,
+             `views`
+         from gulivideo
+                  lateral view
+                      explode(category) tmp as category_name        
+    ) t1
+    where category_name = "Music"
+    order by hot desc 
+    limit 10;
+    ```
+
+    
+
+12. 统计每个类别视频观看数Top10
+
+    ① 把原始表中的类别炸开，行成新的字段categroy_name
+
+    ② 按照炸裂开的类别字段category_name分区，按照视频观看数views倒叙排序进行开窗，求出每个类别下的所有视频的观看次数排名rk
+
+    ③ 按照rk字段对全表进行where过滤，求出每个类别观看数Top10；
+
+    ```hive
+    select
+        t2.category_name,
+        t2.views,
+        t2.rk
+    from (
+         select
+             t1.category_name,
+             t1.views,
+             rank() over(partition by t1.category_name order by t1.views desc ) rk
+         from (   
+               select
+                   category_name,
+                   `views`
+               from gulivideo
+                        lateral view
+                            explode(category) tmp as category_name
+           ) t1
+    ) t2
+    where rk <= 10；
+    
+    ```
+
+    
 
 ## 7.6 Hive的优化和高级特性(待续)
 
