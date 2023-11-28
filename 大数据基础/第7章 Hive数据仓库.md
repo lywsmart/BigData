@@ -991,7 +991,7 @@ stored as textfile;
 
 
 
-​	我们先将sale.csv文件上传到hdfs上的[/user/hive/warehouse/sale_db.db/sale/](/user/hive/warehouse/sale_db.db/sale)上
+​	我们先将sale.csv文件上传到hdfs上的[/user1/hive/warehouse/sale_db.db/sale/](/user/hive/warehouse/sale_db.db/sale)上
 
 ​	（**步骤省略，已经学到这了，该自己写了**）上传结果如下：
 
@@ -1865,7 +1865,7 @@ STORED AS 文件格式;
 
 
 
-**分析数据集**
+##### **a.分析数据集**
 
 ​	[sales_data.txt]()数据集，包含了某某大型商城2022年的销售记录，共7个字段，分别是
 
@@ -1886,7 +1886,7 @@ STORED AS 文件格式;
 | 字段中文解释 | 销售编号 |   产品名称   |   数量   | 销售日期  |    单价    |  客户编号   |   销售渠道   |
 | :----------: | :------: | :----------: | :------: | :-------: | :--------: | :---------: | :----------: |
 |    字段名    | sale_id  | product_name | quantity | sale_date | unit_price | customer_id | sale_channel |
-| 字段数据类型 |   int    |    string    |   int    |   date    |   float    |   string    |    string    |
+| 字段数据类型 |  bigint  |    string    |   int    |   date    |   float    |   string    |    string    |
 
 - 记录按行分割
 - 字段按"_"分割
@@ -1910,7 +1910,7 @@ use hive_db;
 
 ```hive
 create table if not exists sale (
-	sale_id int,
+	sale_id bigint,
 	product_name string,
 	quantity int,
 	sale_date date,
@@ -1965,7 +1965,7 @@ LOCATION '表数据的HDFS路径';
 ​	演示创建一个外部表。
 
 ```hive
-create external table if not exists sale (
+create external table if not exists sale_external (
 	goodType varchar(50),
     volume float,
     unit float
@@ -2083,7 +2083,7 @@ DROP TABLE IF EXISTS 表名;
 
 ​	[加载文件]()是Hive中常用的[数据导入方式]()，通过加载本地文件系统或HDFS文件系统中文件内的结构化数据，向Hive的指定表批量导入数据。
 
-	##### (1)直接上传到对应HDFS存储路径
+##### (1)直接上传到对应HDFS存储路径
 
 ​	在7.1.7中我们已经测试过，在Hive中，创建的“数据表”实际上在底层文件系统（如Hadoop的HDFS）中表现为[一个文件夹。]()
 
