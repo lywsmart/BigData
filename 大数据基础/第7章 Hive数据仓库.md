@@ -2262,14 +2262,35 @@ FROM sale
 	
 ```
 
-##### (7) **查询每个客户的最近一次购买记录**
+##### (7) **查询每个客户的最近一次购买日期**
 
 ```hive
 SELECT 
 	customer_id, 
 	MAX(sale_date) AS last_purchase_date 
-FROM sales 
+FROM sale 
 	GROUP BY customer_id;
+```
+
+​	拓展：查询每个客户的最近一次购买记录
+
+```hive
+select
+	orc.*
+from
+	sale as orc
+inner join
+    (select 
+        customer_id, max(sale_date) as latest_date
+    from
+        sale
+    group by
+        customer_id
+     ) as t
+on
+	orc.customer_id = t.customer_id and orc.sale_date = t.latest_date
+	;
+	
 ```
 
 
@@ -2278,11 +2299,11 @@ FROM sales
 
 ```hive
 SELECT 
-	YEAR(sale_date) AS year, 
-	MONTH(sale_date) AS month, 
-	SUM(quantity) AS total_quantity 
+	product_name,
+	MIN(unit_price),
+	MAX(unit_price)
 FROM sale 
-	GROUP BY YEAR(sale_date), MONTH(sale_date);
+	GROUP BY product_name;
 ```
 
 
