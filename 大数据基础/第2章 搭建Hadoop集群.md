@@ -376,7 +376,7 @@ mkdir /usr/local/src/hadoop/tmp
 vi /usr/local/src/hadoop/etc/hadoop/hdfs-site.xml
 ```
 
-**在<configuration>标签之间加入配置信息，如下图**
+**在\<configuration>标签之间加入配置信息，如下图**
 
 ```xml
 <property>
@@ -416,7 +416,7 @@ cp /usr/local/src/hadoop/etc/hadoop/mapred-site.xml.template /usr/local/src/hado
 vi /usr/local/src/hadoop/etc/hadoop/mapred-site.xml
 ```
 
-**在<configuration>标签之间加入配置信息，如下图**
+**在\<configuration>标签之间加入配置信息，如下图**
 
 ```xml
 <property>
@@ -493,7 +493,7 @@ vi /etc/profile
 (2)在系统配置文件的最后一行添加以下配置
 
 ```shell
-####hadoop的环境变量
+#### hadoop的环境变量
 export HADOOP_HOME=/usr/local/src/hadoop
 export PATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
 ```
