@@ -971,7 +971,7 @@ hive> USE SALE_DB;
 ​	创建[SALE]()表
 
 ```hive
-create table sale (
+create table test_sale (
 	goodType varchar(50),
     volume float,
     unit float
@@ -981,23 +981,23 @@ lines terminated by "\n"
 stored as textfile;
 ```
 
-<img src="./第7章 Hive数据仓库.assets/image-20231121090650592.png" alt="image-20231121090650592" style="zoom:67%;" />
+<img src="./第7章 Hive数据仓库.assets/image-20231204193004288.png" alt="image-20231204193004288" style="zoom:67%;" />
 
 
 
-​	此时我们来到https://master:50070, 看到Hive创建了如下层级的目录([/user/hive/warehouse/sale_db.db/sale/](/user/hive/warehouse/sale_db.db/sale/)
+​	此时我们来到https://master:50070, 看到Hive创建了如下层级的目录([/user1/hive/warehouse/sale_db.db/test_sale/](/user/hive/warehouse/sale_db.db/sale/)
 
-![image-20231121090702381](./第7章 Hive数据仓库.assets/image-20231121090702381.png)
+![image-20231204193202783](./第7章 Hive数据仓库.assets/image-20231204193202783.png)
 
 
 
-​	我们先将sale.csv文件上传到hdfs上的[/user1/hive/warehouse/sale_db.db/sale/](/user/hive/warehouse/sale_db.db/sale)上
+​	我们先将sale.csv文件上传到hdfs上的[/user1/hive/warehouse/sale_db.db/test_sale/](/user/hive/warehouse/sale_db.db/sale)上
 
 ​	（**步骤省略，已经学到这了，该自己写了**）上传结果如下：
 
+<img src="./第7章 Hive数据仓库.assets/image-20231204193325486.png" alt="image-20231204193325486" />
 
 
-![image-20231121090715999](./第7章 Hive数据仓库.assets/image-20231121090715999.png)
 
 
 
@@ -1006,24 +1006,24 @@ stored as textfile;
 ​	在Hive中查看该数据
 
 ```hive
-hive> select * from sale limit 5;
+hive> select * from test_sale limit 5;
 ```
 
 ​	我们就可以发现该文本文件被[映射]()成了表结构
 
-<img src="./第7章 Hive数据仓库.assets/image-20231121090723938.png" alt="image-20231121090723938" style="zoom:67%;" />
+<img src="./第7章 Hive数据仓库.assets/image-20231204193350433.png" alt="image-20231204193350433" style="zoom:80%;" />
 
 
 
 ​	我们可以通过HQL语句完成对营业额的统计
 
 ```hive
-hive> select goodType, SUM(volume * unit) from sale group by goodType;
+hive> select goodType, SUM(volume * unit) from test_sale group by goodType;
 ```
 
 ​	启动MR进行计算
 
-<img src="./第7章 Hive数据仓库.assets/image-20231121090736379.png" alt="image-20231121090736379" style="zoom:80%;" />
+![image-20231204193645288](./第7章 Hive数据仓库.assets/image-20231204193645288.png)
 
 ​	计算结果如下：
 
@@ -2098,6 +2098,76 @@ DROP TABLE IF EXISTS 表名;
 
 
 
+#### ⑦ 带组合数据类型的建表
+
+​	带组合数据类型的建表。
+
+##### (1)带数组的创建表
+
+```hive
+CREATE TABLE 表名 (
+    列名 ARRAY<数据类型>
+)
+  ROW FORMAT DELIMITED
+  FIELDS TERMINATED BY '字段分隔符'
+  COLLECTION ITEMS TERMINATED BY '数组内部分隔符'‘
+  STORED AS 文件格式;
+```
+
+- `ARRAY` 表示数组类型，用于存储相同数据类型的多个值。
+- `COLLECTION ITEMS TERMINATED BY` 同样用于指定数组内元素的分隔符。
+
+
+
+​	**我们将7.5.3的实训中用到Array类型的字段。**
+
+
+
+##### (2)带Map的创建表
+
+```hive
+CREATE TABLE 表名 (
+    列名 MAP<键类型, 值类型>
+) [COMMENT 表注释]
+  ROW FORMAT DELIMITED
+  FIELDS TERMINATED BY '字段分隔符'
+  MAP KEYS TERMINATED BY '映射键值分隔符'
+  STORED AS 文件格式;
+```
+
+- `MAP` 表示映射类型，用于创建键值对集合。
+- `MAP KEYS TERMINATED BY` 用于指定映射中键和值之间的分隔符。
+
+
+
+
+
+
+
+##### (3)带结构体的创建表
+
+```hive
+CREATE TABLE 表名 (
+    列名 STRUCT<字段名1:数据类型1, 字段名2:数据类型2, ...>
+) [COMMENT 表注释]
+  ROW FORMAT DELIMITED
+  FIELDS TERMINATED BY '字段分隔符'
+  COLLECTION ITEMS TERMINATED BY '结构体内部分隔符'
+  STORED AS 文件格式;
+```
+
+- `STRUCT` 表示结构体类型，用于定义包含不同数据类型字段的数据结构。
+- `FIELDS TERMINATED BY` 用于指定字段间的分隔符。
+- `COLLECTION ITEMS TERMINATED BY` 用于指定结构体内部或数组内部元素的分隔符。
+
+​	
+
+​	
+
+
+
+
+
 ### 7.4.3 数据操作
 
 #### ① 加载文件（重点）
@@ -2900,11 +2970,11 @@ ORDER BY quarter;
    (1)使用 Hive 的 `LATERAL VIEW` 和 `explode` 以及`统计函数`。计算出[点击]()、[下单]()、[支付]()的数量，并分别存入三个临时表。
 
    ​	[PS：其实这里可以直接用子查询完成，但代码复杂，不方便教学，故使用临时表方式]()
+
    
-   
-   
+
    ​	创建品类点击统计临时表
-   
+
    ```hive
    CREATE TEMPORARY TABLE temp_click_count AS
    SELECT 
@@ -2915,9 +2985,9 @@ ORDER BY quarter;
    GROUP BY
    	click_category_id;
    ```
-   
+
    ​	创建品类下单统计临时表
-   
+
    ```hive
    CREATE TEMPORARY TABLE temp_order_count AS
    SELECT 
@@ -2929,9 +2999,9 @@ ORDER BY quarter;
    GROUP BY
    	order_category_id;
    ```
-   
+
    ​	创建品类支付统计临时表
-   
+
    ```hive
    CREATE TEMPORARY TABLE temp_pay_count AS
    SELECT 
@@ -2943,11 +3013,11 @@ ORDER BY quarter;
    GROUP BY
    	pay_category_id;
    ```
+
    
-   
-   
+
    (2) 连接三个统计表，并根据排名规则统计出热门品类
-   
+
    ```hive
    SELECT 
    	click_category_id
@@ -2969,13 +3039,13 @@ ORDER BY quarter;
    	rank DESC
    	;
    ```
-   
+
    <img src="./第7章 Hive数据仓库.assets/image-20231127112822542.png" alt="image-20231127112822542" style="zoom:50%;" />
-   
+
    最终热门品类的排名如下：
-   
+
    <img src="./第7章 Hive数据仓库.assets/image-20231127112907185.png" alt="image-20231127112907185" style="zoom:67%;" />
-   
+
    我们可以从查询结果得知，[7号品类的商品是最热门的]()。
 
 
