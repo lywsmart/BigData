@@ -2794,21 +2794,21 @@ ORDER BY quarter;
 
 数据详细字段说明
 
-| **编号** |      **字段名称**      | **字段类型** |          **字段含义**          |
-| :------: | :--------------------: | :----------: | :----------------------------: |
-|    1     |       event_date       |    String    |       用户点击行为的日期       |
-|    2     |        user_id         |     Long     |            用户的ID            |
-|    3     |       session_id       |    String    |          Session的ID           |
-|    4     |        page_id         |     Long     |          某个页面的ID          |
-|    5     |      action_time       |    String    |          动作的时间点          |
-|    6     |     search_keyword     |    String    |        用户搜索的关键词        |
-|    7     | [click_category_id]()  |     Long     |   [点击某一个商品品类的ID]()   |
-|    8     |    click_product_id    |     Long     |         某一个商品的ID         |
-|    9     | [order_category_ids]() |    Array     | [一次订单中所有品类的ID集合]() |
-|    10    |   order_product_ids    |    Array     |   一次订单中所有商品的ID集合   |
-|    11    |  [pay_category_ids]()  |    Array     | [一次支付中所有品类的ID集合]() |
-|    12    |    pay_product_ids     |    Array     |   一次支付中所有商品的ID集合   |
-|    13    |        city_id         |     Long     |            城市  id            |
+| **编号** |      **字段名称**      |  **字段类型**  |          **字段含义**          |
+| :------: | :--------------------: | :------------: | :----------------------------: |
+|    1     |       event_date       |      DATE      |       用户点击行为的日期       |
+|    2     |        user_id         |     Bigint     |            用户的ID            |
+|    3     |       session_id       |     String     |          Session的ID           |
+|    4     |        page_id         |     Bigint     |          某个页面的ID          |
+|    5     |      action_time       |     String     |          动作的时间点          |
+|    6     |     search_keyword     |     String     |        用户搜索的关键词        |
+|    7     | [click_category_id]()  |     Bigint     |   [点击某一个商品品类的ID]()   |
+|    8     |    click_product_id    |     Bigint     |         某一个商品的ID         |
+|    9     | [order_category_ids]() | Array\<String> | [一次订单中所有品类的ID集合]() |
+|    10    |   order_product_ids    | Array\<String> |   一次订单中所有商品的ID集合   |
+|    11    |  [pay_category_ids]()  | Array\<String> | [一次支付中所有品类的ID集合]() |
+|    12    |    pay_product_ids     | Array\<String> |   一次支付中所有商品的ID集合   |
+|    13    |        city_id         |     Bigint     |            城市  id            |
 
 
 
@@ -3020,7 +3020,7 @@ ORDER BY quarter;
 
    ```hive
    SELECT 
-   	click_category_id
+   	click_category_id,
        (click_count * 0.2 + order_count * 0.3 + pay_count * 0.5) as rank,
        click_count,
        order_count,
