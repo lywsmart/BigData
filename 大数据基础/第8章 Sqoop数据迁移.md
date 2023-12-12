@@ -957,6 +957,7 @@ sqoop export \
 --export-dir /sqoop/hive_count/ \
 --input-fields-terminated-by "|" \
 --update-mode allowinsert \
+--update-key city \
 --num-mappers 3
 ```
 
@@ -965,8 +966,11 @@ sqoop export \
 - **`--export-dir`**：这个参数指定了导出数据的目录或路径。
 - **`--input-fields-terminated-by`**：这个参数用于指定输入文件中字段之间的分隔符。
 - **`--update-mode allowinsert`**：如果目标MySQL表中已经存在对应的记录，则更新这些记录；如果不存在，则插入新记录。
+- **`--update-key`**：指明哪个字段（或字段组合）被用作匹配现有记录的键，一般是主键或唯一键。
 
-<img src="./第8章 Sqoop数据迁移.assets/image-20231212105146991.png" alt="image-20231212105146991" style="zoom:67%;" />
+
+
+<img src="./第8章 Sqoop数据迁移.assets/image-20231212115026295.png" alt="image-20231212115026295" />
 
 
 
@@ -983,3 +987,57 @@ select * from sqoop_db.emp_city_conut;
 
 
 ​	分析结果已经被导入到MySQL中，接下来就可以被应用程序所使用（[数据可视化课程学习内容]()）
+
+
+
+
+
+
+
+## 8.6 Sqoop报错日志分析
+
+​	说明：查看Job日志必须要开启jobHistory进程，并且要在hadoop集群中配置好，才能查看Log日志。
+
+
+
+### 1. 查看Job工作编号
+
+​	 如果是在导入导出时出现错误，可以先找到此次执行的job工作的编号
+
+<img src="./第8章 Sqoop数据迁移.assets/image-20231212113203186.png" alt="image-20231212113203186" />
+
+
+
+### 2.进入Yarn工作界面查看问题
+
+​	如果从系统提供的异常看不出具体错误，我们可以将job的编号记录下来[job_1607948813967_0003]()。
+
+​	然后到yarn的管理界面（http://master:8088/cluster）查看
+
+<img src="./第8章 Sqoop数据迁移.assets/image-20231212113147619.png" alt="image-20231212113147619" style="zoom: 80%;" />
+
+​		
+
+
+
+​	在网页中找到Log页面，打开
+
+<img src="./第8章 Sqoop数据迁移.assets/image-20231212113229195.png" alt="image-20231212113229195" />
+
+
+
+### 3.点击here打开完整的日志
+
+<img src="./第8章 Sqoop数据迁移.assets/image-20231212113326264.png" alt="image-20231212113326264" />
+
+
+
+​	注意：如果出现如下信息，则说明jobhistory没有启动，
+
+<img src="./第8章 Sqoop数据迁移.assets/image-20231212113343595.png" alt="image-20231212113343595" />
+
+
+
+### 4.根据日志信息分析结果
+
+<img src="./第8章 Sqoop数据迁移.assets/image-20231212113413943.png" alt="image-20231212113413943" />
