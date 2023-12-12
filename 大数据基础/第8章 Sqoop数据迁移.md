@@ -967,7 +967,7 @@ sqoop export \
 
 
 
-#### (4) 查看MySQL
+### (4) 查看MySQL
 
 ​	在虚拟机Master登录MySQL，并执行“select * from sqoop_db.emp_city_conut;”命令查询数据表[emp_city_conut]()的数据。
 
