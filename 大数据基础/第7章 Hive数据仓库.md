@@ -389,7 +389,7 @@ mysql>create database hive_db;
 
 
 
-#### ③ 授权hive_db
+#### ③ MySQL远程登录授权
 
 ​	赋予root用户对所有数据库所有表的所有权限，且任何地址都能建立连接“%”（即具有远程连接功能），并具有授予权。
 
@@ -2765,6 +2765,107 @@ ORDER BY quarter;
 
 
 
+#### 五、制定工业机器标准
+
+| 字段名       | 说明                           |
+| ------------ | :----------------------------- |
+| machine_id   | 机器的唯一标识符               |
+| timestamp    | 数据记录的时间戳               |
+| running_time | 机器的运行时间（小时）         |
+| downtime     | 机器的停机时间（小时）         |
+| failures     | 在该时间段内机器发生的故障次数 |
+| output       | 产出数量                       |
+
+​	上述我们做的实验是对单一字段来进行统计，而真正判定一台机器的好坏不可能只从某一个维度出发。
+
+​	不然的话，就会得出不理想的答案。
+
+```
+比如第1问：
+	哪台机器的平均停机时间最长？
+
+但是我们能说停机时间最长的机子是应该被淘汰的吗？
+	假设a机子运行时间100个小时，停机10个小时，b机子运行1个小时，停机1个小时。
+	按照我们的算法，a机子的停机时间远远大于b机子，应该淘汰a。
+	显然上面的理解是不对的，很明显a机子100个小时才停机了10个小时，b机子运行了1个小时就停了1个小时。
+	在时间维度a更好。
+	
+我们需要把所有维度都利用上，并制定标准（需要大量的调研）
+```
+
+​	假设，以下标准是我们调研的结果。
+
+![image-20231211173958050](./第7章 Hive数据仓库.assets/image-20231211173958050.png)
+
+​	根据以下标准我们就可以找到效率最低的10台机子了。
+
+```hive
+select
+   machine_id,
+   AVG(running_time / (running_time + downtime)),
+   AVG(failures / (running_time + downtime)),
+   AVG(output / (running_time + downtime)),
+   
+   AVG(running_time / (running_time + downtime)) * 0.2 
+   - 0.4 * AVG(failures / (running_time + downtime))
+   + 0.4 * AVG(output / (running_time + downtime))  as rank
+from
+   machine
+group by
+   machine_id
+order by
+   rank 
+limit 10
+   ;
+```
+
+<img src="./第7章 Hive数据仓库.assets/image-20231211174057784.png" alt="image-20231211174057784" style="zoom:67%;" />
+
+ 	从以上结果得出，我们会发现【运行效率】的值在0.8-0.9之间，【失败率】的值非常小，而【产出率】的值在2.7-3.5左右。
+
+​	这时候我们就会发现，除了我们制定的权重规则以外，本身三个字段的单位是不一样的，就会导致【产出率】的影响是最大的，而【失败率】几乎不会产生任何影响。
+
+​	这时我们需要对三个字段的[单位进行统一]()，即只关心它们的[比例关系]()。
+
+​	最常用的单位统一方式称为[归一化]()。
+
+
+
+**Min-Max归一化**：将数据线性缩放到[0, 1]或[-1, 1]的范围内。计算公式为：
+
+<img src="./第7章 Hive数据仓库.assets/image-20231211190042057.png" alt="image-20231211190042057" style="zoom:150%;" />
+
+​	
+
+​	根据归一化公式，对三个聚合字段进行归一化：
+
+```hive
+SELECT
+    machine_id,
+    0.2 *
+    (running_time_ratio - MIN(running_time_ratio) OVER ()) / (MAX(running_time_ratio) OVER () - MIN(running_time_ratio) OVER ()) 
+    - 0.4 *
+    (failure_rate - MIN(failure_rate) OVER ()) / (MAX(failure_rate) OVER () - MIN(failure_rate) OVER ()) 
+    + 0.4 *
+    (output_ratio - MIN(output_ratio) OVER ()) / (MAX(output_ratio) OVER () - MIN(output_ratio) OVER ())  AS RANK
+       
+FROM (
+    SELECT
+        machine_id,
+        AVG(running_time / (running_time + downtime)) AS running_time_ratio,
+        AVG(failures / (running_time + downtime)) AS failure_rate,
+        AVG(output / (running_time + downtime)) AS output_ratio
+    FROM
+        machine
+    GROUP BY
+        machine_id
+) AS subquery
+ORDER BY
+   RANK;
+```
+
+
+
 ### 7.5.2 某电商网站用户行为分析
 
 #### 一、案例背景
@@ -2983,11 +3084,12 @@ ORDER BY quarter;
    FROM 
        user_behavior
    GROUP BY
-   	click_category_id;
+       click_category_id
+       ;
    ```
-
+   
    ​	创建品类下单统计临时表
-
+   
    ```hive
    CREATE TEMPORARY TABLE temp_order_count AS
    SELECT 
@@ -2997,11 +3099,12 @@ ORDER BY quarter;
        user_behavior
        LATERAL VIEW explode(order_category_ids) t AS order_category_id
    GROUP BY
-   	order_category_id;
+       order_category_id
+       ;
    ```
 
    ​	创建品类支付统计临时表
-
+   
    ```hive
    CREATE TEMPORARY TABLE temp_pay_count AS
    SELECT 
@@ -3011,16 +3114,17 @@ ORDER BY quarter;
        user_behavior
        LATERAL VIEW explode(pay_category_ids) t AS pay_category_id
    GROUP BY
-   	pay_category_id;
+       pay_category_id
+       ;
    ```
-
    
-
+   
+   
    (2) 连接三个统计表，并根据排名规则统计出热门品类
-
+   
    ```hive
    SELECT 
-   	click_category_id,
+       click_category_id,
        (click_count * 0.2 + order_count * 0.3 + pay_count * 0.5) as rank,
        click_count,
        order_count,
@@ -3028,24 +3132,24 @@ ORDER BY quarter;
    FROM 
        temp_click_count
    INNER JOIN 
-   	temp_order_count
-   	ON
-   		temp_click_count.click_category_id = temp_order_count.order_category_id
+       temp_order_count
+       ON
+           temp_click_count.click_category_id = temp_order_count.order_category_id
    INNER JOIN
-   	temp_pay_count
-   	ON
-   		temp_click_count.click_category_id = temp_pay_count.pay_category_id
+       temp_pay_count
+       ON
+           temp_click_count.click_category_id = temp_pay_count.pay_category_id
    ORDER BY
-   	rank DESC
-   	;
+       rank DESC
+       ;
    ```
-
+   
    <img src="./第7章 Hive数据仓库.assets/image-20231127112822542.png" alt="image-20231127112822542" style="zoom:50%;" />
-
+   
    最终热门品类的排名如下：
-
+   
    <img src="./第7章 Hive数据仓库.assets/image-20231127112907185.png" alt="image-20231127112907185" style="zoom:67%;" />
-
+   
    我们可以从查询结果得知，[7号品类的商品是最热门的]()。
 
 
