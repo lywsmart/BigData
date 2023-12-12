@@ -951,8 +951,9 @@ sqoop export \
 --password Password123$ \
 --table emp_city_conut \
 --columns city,city_count \
---export-dir /sqoop/hive_count/000000_0 \
+--export-dir /sqoop/hive_count/ \
 --input-fields-terminated-by "|" \
+--update-mode allowinsert \
 --num-mappers 3
 ```
 
@@ -960,10 +961,9 @@ sqoop export \
 
 - **`--export-dir`**：这个参数指定了导出数据的目录或路径。
 - **`--input-fields-terminated-by`**：这个参数用于指定输入文件中字段之间的分隔符。
+- **`--update-mode allowinsert`**：如果目标MySQL表中已经存在对应的记录，则更新这些记录；如果不存在，则插入新记录。
 
-
-
-<img src="./第8章 Sqoop数据迁移.assets/image-20231212102742650.png" alt="image-20231212102742650" style="zoom:80%;" />
+<img src="./第8章 Sqoop数据迁移.assets/image-20231212105146991.png" alt="image-20231212105146991" style="zoom:67%;" />
 
 
 
