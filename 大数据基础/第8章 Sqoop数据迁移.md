@@ -340,6 +340,9 @@ sqoop help command
    ​	复制以下语句到文件中
 
    ```mysql
+   -- 使用数据库sqoop_db
+   USE sqoop_db;
+   
    -- 创建数据表emp的SQL语句如下
    DROP TABLE IF EXISTS `emp`;
    CREATE TABLE `emp` (
@@ -548,7 +551,7 @@ sqoop import \
 - **`--password`**       指定登录MySQL的密码
 - **`--table`**                指定MySQL中的表
 - **`--columns`**          指定表的字段
-- **`--target-dir`**       指定表的字段
+- **`--target-dir`**       指定数据导入到HDFS的目录，该目录无须手动创建
 - **`--num-mappers`**    指定MapTask的个数
 
 
