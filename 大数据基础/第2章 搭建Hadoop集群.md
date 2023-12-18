@@ -594,13 +594,13 @@ jps
 systemctl stop firewalld    ##关闭防火墙
 ```
 
-（1）打开浏览器输入http://172.16.106.100:50070/（**注意**：ip地址为master节点的ip）
+（1）打开浏览器输入http://master:50070/（**注意**：ip地址为master节点的ip）
 
 <img src="第2章 搭建Hadoop集群.assets/image-20220925172903564.png" alt="image-20220925172903564" style="zoom:80%;" />
 
 
 
-（2）yarn网页监控界面，打开浏览器输入http://172.16.106.100:8088（**注意**：ip地址为master节点的ip）
+（2）yarn网页监控界面，打开浏览器输入http://master:8088（**注意**：ip地址为master节点的ip）
 
 <img src="第2章 搭建Hadoop集群.assets/image-20220328104007896.png" alt="image-20220328104007896" style="zoom:80%;" />
 
