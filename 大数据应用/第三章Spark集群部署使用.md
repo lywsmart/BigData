@@ -1,8 +1,8 @@
-# 第三章 Spark集群部署使用
+# 第一章 Spark集群部署使用
 
-## 3.1 安装部署高可用Spark
+## 1.1 安装部署高可用Spark
 
-### 3.1.1 解压Spark压缩包
+### 1.1.1 解压Spark压缩包
 
 - 进入到/usr/local/src目录下，输入以下命令：
 
@@ -18,7 +18,7 @@ tar -zxvf spark-2.1.1-bin-hadoop2.7.tgz -C /opt
 
 <img src="第三章Spark集群部署使用.assets/image-20240317230540606.png" alt="image-20240317230540606" style="zoom:80%;" />
 
-### 3.1.2 重命名
+### 1.1.2 重命名
 
 - 进入到/opt目录下
 
@@ -34,7 +34,7 @@ mv spark-2.1.1-bin-hadoop2.7 spark
 
 <img src="第三章Spark集群部署使用.assets/image-20240317230813602.png" alt="image-20240317230813602" style="zoom:80%;" />
 
-### 3.1.3 添加环境变量
+### 1.1.3 添加环境变量
 
 - 编辑/etc/profile文件，输入以下命令
 
@@ -53,7 +53,7 @@ export PATH=$PATH:$SPARK_HOME/bin:$PATH
 
 <img src="第三章Spark集群部署使用.assets/image-20240317231054140.png" alt="image-20240317231054140" style="zoom:80%;" />
 
-### 3.1.4 使环境变量生效
+### 1.1.4 使环境变量生效
 
 - 输入命令
 
@@ -63,7 +63,7 @@ source /etc/profile
 
 - 使spark环境变量生效
 
-### 3.1.5 验证Spark命令
+### 1.1.5 验证Spark命令
 
 - 输入命令
 
@@ -73,7 +73,7 @@ source /etc/profile
 
 <img src="第三章Spark集群部署使用.assets/image-20240317231311135.png" alt="image-20240317231311135" style="zoom:80%;" />
 
-### 3.1.6编辑spark配置文件
+### 1.1.6编辑spark配置文件
 
 ​	首先进入到**spark配置文件目录**下，输入命令
 
@@ -136,7 +136,7 @@ vi slaves
 
 <img src="第三章Spark集群部署使用.assets/image-20240317233347041.png" alt="image-20240317233347041" style="zoom:80%;" />
 
-### 3.1.7 spark目录
+### 1.1.7 spark目录
 
 1. 将master节点上的spark目录复制到其他节点上去（slave1和slave2）
 
@@ -166,11 +166,11 @@ source /etc/profile
 echo $SPARK_HOME
 ```
 
-## 3.2 Spark集群运行模式
+## 1.2 Spark集群运行模式
 
 ​	**Spark 的常用运行模式有 Local(也称单节点模式），Standalone(集群模式），Spark on Yarn(运行在Yarn上）。**
 
-### 3.1.1 Spark local模式运行
+### 1.1.1 Spark local模式运行
 
 1. Spark单机运行模式，一般用于开发测试。运行该模式非常简单，只需要把Spark的安装包解压后，改一些常用的配置即可使用，而不用启动Spark的Master、Worker守护进程，也不用启动Hadoop的各服务（除非需要用到HDFS）。
 
@@ -201,7 +201,7 @@ spark-submit  \
 | <Application-jar>       | 即表示表示执行的类所在的jar路径，例如本例：/opt/spark/examples/jars/spark-examples_2.11-2.1.1.jar |
 | [application-arguments] | 传入jar的主类的参数，例如本例：40                            |
 
-### 3.2.2 Spark Standalone模式
+### 1.2.2 Spark Standalone模式
 
 ​	构建一个由Master+Slave构成的Spark集群。和单机运行的模式不同，这里必须在执行应用程序前，先启动Spark的Master和Worker守护进程。这种运行模式，可以使用Spark的8080 来观察资源和应用程序的执行情况了。
 
@@ -242,7 +242,7 @@ spark-submit  \
 
 <img src="C:\Users\samrt\AppData\Roaming\Typora\typora-user-images\image-20220410183109775.png" alt="image-20220410183109775" style="zoom:80%;" />
 
-#### 3. 基于standalone的cluster集群模式
+#### 1. 基于standalone的cluster集群模式
 
 ​	①cluster模式下:适用于生产环境
 
@@ -266,7 +266,7 @@ spark-submit  \
 
 
 
-### 3.2.3 停止spark集群
+### 1.2.3 停止spark集群
 
 1. 在master节点输入以下命令停止spark集群
 
@@ -274,9 +274,9 @@ spark-submit  \
 /usr/local/src/spark/sbin/stop-all.sh 
 ```
 
-## 3.3 spark-shell操作
+## 1.3 spark-shell操作
 
-### 3.3.1 spark-shell运行
+### 1.1.1 spark-shell运行
 
 1. 基于local模式运行spark-shell应用
 
@@ -299,7 +299,7 @@ spark-submit  \
 
 <img src="第三章Spark集群部署使用.assets/image-20220414174421419.png" alt="image-20220414174421419" style="zoom:80%;" />
 
-### 3.3.2 WordCount单词统计
+### 1.1.2 WordCount单词统计
 
 1. 需求
 
